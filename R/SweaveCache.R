@@ -1,14 +1,26 @@
-cacheSweaveDB <- function(prefix, expr, envir = parent.frame(), cachedir = "cache") {
-    library(filehash)
-    library(digest)
+setCacheDir <- function(path) {
+    assign("cacheDir", path, cacheEnv)
+    dir.create(path, showWarnings = FALSE)
+}
+
+getCacheDir <- function() {
+    get("cacheDir", cacheEnv)
+}
+
+cacheSweave <- function(prefix, expr, envir = parent.frame()) {
     expr <- substitute(expr)
+    cachedir <- getCacheDir()
+
+    if(is.null(cachedir))
+        stop("need to set cache directory with 'setCacheDir'")
     dbName <- file.path(cachedir, paste(prefix, digest(expr), sep = "-"))
 
     if(!file.exists(dbName)) {
         env <- new.env()
         eval(expr, env)
 
-        dumpObjects(list = ls(env, all.names = TRUE), dbName = dbName, envir = env)
+        dumpObjects(list = ls(env, all.names = TRUE), dbName = dbName,
+                    envir = env)
     }
     db <- dbInit(dbName)
     keys <- dbList(db)
@@ -21,7 +33,17 @@ cacheSweaveDB <- function(prefix, expr, envir = parent.frame(), cachedir = "cach
     dbLoad(db, envir)
 }
 
-cacheSweave <- function(name, expr, envir = parent.frame()) {
+
+
+
+
+
+
+
+######################################################################
+## Old version that uses R workspaces instead of filehash databases
+
+cacheSweaveOld <- function(name, expr, envir = parent.frame()) {
     if(!file.exists(name)) {
         env <- new.env()
         local(eval(expr), env)

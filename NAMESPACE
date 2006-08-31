@@ -1,1 +1,8 @@
-export("cacheSweaveDB")
+export(
+       "cacheSweaveDB",
+       "setCacheDir",
+       "getCacheDir"
+       )
+
+import(filehash)
+imoprt(digest)
