@@ -7,8 +7,7 @@ getCacheDir <- function() {
     get("cacheDir", cacheEnv)
 }
 
-cacheSweave <- function(prefix, expr, envir = parent.frame(),
-                        type = c("active", "lazy")) {
+cacheSweave <- function(prefix, expr, envir = parent.frame()) {
     type <- match.arg(type)
     expr <- substitute(expr)
     cachedir <- getCacheDir()
