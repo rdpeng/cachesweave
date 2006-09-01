@@ -7,8 +7,7 @@ getCacheDir <- function() {
     get("cacheDir", cacheEnv)
 }
 
-cacheSweave <- function(prefix, expr, envir = parent.frame()) {
-    type <- match.arg(type)
+cacheSweave <- function(prefix, expr, envir = parent.frame(), keys = NULL) {
     expr <- substitute(expr)
     cachedir <- getCacheDir()
 
@@ -24,14 +23,16 @@ cacheSweave <- function(prefix, expr, envir = parent.frame()) {
                     envir = env)
     }
     db <- dbInit(dbName)
-    keys <- dbList(db)
+
+    if(is.null(keys))
+        keys <- dbList(db)
 
     ## Need to clear the environment because 'dbLoad' will not
     ## overwrite existing keys
     suppressWarnings({
         rm(list = keys, pos = envir)
     })
-    dbLoad(db, envir)
+    dbLoad(db, envir, keys = keys)
 }
 
 
