@@ -7,6 +7,9 @@ getCacheDir <- function() {
     get("cacheDir", cacheEnv)
 }
 
+## NOTE: This function uses 'DB1' format without asking.  Eventually
+## we will switch to the filehashRemote/Local stuff.
+
 cacheSweave <- function(prefix, expr, envir = parent.frame(), keys = NULL) {
     expr <- substitute(expr)
     cachedir <- getCacheDir()
@@ -21,23 +24,15 @@ cacheSweave <- function(prefix, expr, envir = parent.frame(), keys = NULL) {
 
         ## Create/initialize caching database
         dbCreate(dbName, "DB1")
-        db <- dbInit(dbName)
-        
-        dumpToDB(db, list = ls(env, all.names = TRUE), envir = env)
+        db <- dbInit(dbName, "DB1")
 
+        ## Only save objects specified by 'keys'
         if(is.null(keys))
             keys <- ls(env, all.names = TRUE)
-        for(key in keys)
-            assign(key, get(key, env), envir)
+        dumpToDB(db, list = keys, envir = env)
     }
-    else {
-        db <- dbInit(dbName)
-        
-        if(is.null(keys))
-            keys <- dbList(db)
-        for(key in keys) 
-            assign(key, dbFetch(db, key), envir)
-    }
+    db <- dbInit(dbName, "DB1")
+    dbLazyLoad(db, envir, keys)
 }
 
 dumpToDB <- function(db, list = character(0), envir = parent.frame()) {
