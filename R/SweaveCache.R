@@ -19,24 +19,34 @@ cacheSweave <- function(prefix, expr, envir = parent.frame(), keys = NULL) {
         env <- new.env()
         eval(expr, env)
 
-        dumpObjects(list = ls(env, all.names = TRUE), dbName = dbName,
-                    envir = env)
+        ## Create/initialize caching database
+        dbCreate(dbName, "DB1")
+        db <- dbInit(dbName)
+        
+        dumpToDB(db, list = ls(env, all.names = TRUE), envir = env)
+
+        if(is.null(keys))
+            keys <- ls(env, all.names = TRUE)
+        for(key in keys)
+            assign(key, get(key, env), envir)
     }
-    db <- dbInit(dbName)
-
-    if(is.null(keys))
-        keys <- dbList(db)
-
-    ## Need to clear the environment because 'dbLoad' will not
-    ## overwrite existing keys
-    suppressWarnings({
-        rm(list = keys, pos = envir)
-    })
-    dbLoad(db, envir, keys = keys)
+    else {
+        db <- dbInit(dbName)
+        
+        if(is.null(keys))
+            keys <- dbList(db)
+        for(key in keys) 
+            assign(key, dbFetch(db, key), envir)
+    }
 }
 
-
-
+dumpToDB <- function(db, list = character(0), envir = parent.frame()) {
+    if(!is(db, "filehash"))
+        stop("'db' should be a 'filehash' database")
+    for(i in seq(along = list))
+        dbInsert(db, list[i], get(list[i], envir))
+    invisible(db)
+}
 
 
 
