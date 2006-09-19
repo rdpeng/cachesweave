@@ -10,13 +10,13 @@ getCacheDir <- function() {
 ## NOTE: This function uses 'DB1' format without asking.  Eventually
 ## we will switch to the filehashRemote/Local stuff.
 
-cacheSweave <- function(prefix, expr, envir = parent.frame(), keys = NULL) {
+cacheSweave <- function(expr, prefix = NULL, envir = parent.frame(), keys = NULL) {
     expr <- substitute(expr)
     cachedir <- getCacheDir()
 
     if(is.null(cachedir))
         stop("need to set cache directory with 'setCacheDir'")
-    dbName <- file.path(cachedir, paste(prefix, digest(expr), sep = "-"))
+    dbName <- file.path(cachedir, paste(prefix, digest(expr), sep = "_"))
 
     if(!file.exists(dbName)) {
         env <- new.env()

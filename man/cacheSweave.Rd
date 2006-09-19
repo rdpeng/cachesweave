@@ -6,12 +6,12 @@
   Cache computations when using Sweave
 }
 \usage{
-cacheSweave(prefix, expr, envir = parent.frame(), keys = NULL)
+cacheSweave(expr, prefix = "", envir = parent.frame(), keys = NULL)
 }
 
 \arguments{
-  \item{prefix}{character, to be used for naming the cache file}
   \item{expr}{code to be evaluated}
+  \item{prefix}{character, to be used for naming the cache file}
   \item{envir}{environment into which cached results should be loaded}
   \item{keys}{character vector of keys to be cached/loaded}
 }
