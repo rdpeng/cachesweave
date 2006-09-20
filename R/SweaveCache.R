@@ -19,7 +19,7 @@ cacheSweave <- function(expr, prefix = NULL, envir = parent.frame(), keys = NULL
     dbName <- file.path(cachedir, paste(prefix, digest(expr), sep = "_"))
 
     if(!file.exists(dbName)) {
-        env <- new.env()
+        env <- new.env(parent = globalenv())
         eval(expr, env)
 
         ## Create/initialize caching database
