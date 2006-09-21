@@ -1,7 +1,8 @@
 export(
        "cacheSweave",
        "setCacheDir",
-       "getCacheDir"
+       "getCacheDir",
+       "cacheSweaveDriver"
        )
 
 import(filehash)
