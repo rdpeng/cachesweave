@@ -1,5 +1,6 @@
 \name{cacheSweave}
 \alias{cacheSweave}
+\alias{cacheSweaveDriver}
 
 \title{Cache Sweave Computations}
 \description{
@@ -7,6 +8,7 @@
 }
 \usage{
 cacheSweave(expr, prefix = "", envir = parent.frame(), keys = NULL)
+cacheSweaveDriver()
 }
 
 \arguments{
@@ -16,7 +18,9 @@ cacheSweave(expr, prefix = "", envir = parent.frame(), keys = NULL)
   \item{keys}{character vector of keys to be cached/loaded}
 }
 \details{
-  
+  \code{cacheSweaveDriver} is used directly with \code{Sweave} and is
+  passed as the \code{driver} argument.  \code{cacheSweave} can be used
+  directly in R code.
 }
 \value{
   Nothing useful is returned.

@@ -46,16 +46,10 @@ dumpToDB <- function(db, list = character(0), envir = parent.frame()) {
 
 
 
-
-
-
-
-
-
-
 ######################################################################
 ######################################################################
-## Taken/adapted from Sweave code by Friedrich Leisch
+## Taken/adapted from Sweave code by Friedrich Leisch, along the lines
+## of 'weaver' but more naive and we use 'filehash' databases
 
 cacheSweaveDriver <- function() {
     list(
@@ -71,7 +65,7 @@ cacheSweaveDriver <- function() {
 cacheSweaveSetup <- function(file, syntax,
                              output=NULL, quiet=FALSE, debug=FALSE, echo=TRUE,
                              eval=TRUE, split=FALSE, stylepath=TRUE, pdf=TRUE, eps=TRUE,
-                             cache = TRUE) {
+                             cache = FALSE) {
     
     out <- utils:::RweaveLatexSetup(file, syntax, output=NULL, quiet=FALSE,
                                     debug=FALSE, echo=TRUE, eval=TRUE, split=FALSE,
@@ -252,7 +246,7 @@ cacheSweaveRuncode <- function(object, chunk, options)
     return(object)
 }
 
-evalAndDumpToDB <- function(db, expr) {
+evalAndDumpToDB <- function(db, expr, digestExpr) {
     env <- new.env(parent = globalenv())
     eval(expr, env)
     
@@ -261,7 +255,7 @@ evalAndDumpToDB <- function(db, expr) {
 
     ## Associate the newly created keys with the digest of
     ## the expression
-    dbInsert(db, digest(expr), keys)
+    dbInsert(db, digestExpr, keys)
     
     ## Dump the values of the keys to the database
     dumpToDB(db, list = keys, envir = env)
@@ -277,21 +271,23 @@ cacheSweaveEvalWithOpt <- function (expr, options, blockhash){
         if(options$cache) {
             cachedir <- getCacheDir()
             dbName <- file.path(cachedir, paste(options$label, blockhash, sep = "_"))
-            digestExpr <- digest(expr)
+
+            ## Mangle the name so it doesn't show up with 'ls()'
+            digestExpr <- paste(".__", digest(expr), "__.", sep = "")
             
             if(!file.exists(dbName)) 
                 dbCreate(dbName)  ## Database doesn't exist yet, so create it
             db <- dbInit(dbName)
 
-            ## Database exists; check to see if this expression
-            ## has been evaluated already
-            if(!dbExists(db, digestExpr)) {
-                keys <- try({
-                    evalAndDumpToDB(db, expr)
+            ## Database exists; check to see if this expression has
+            ## been evaluated already
+            keys <- if(!dbExists(db, digestExpr)) {
+                try({
+                    evalAndDumpToDB(db, expr, digestExpr)
                 }, silent = TRUE)
             }
             else 
-                keys <- dbFetch(db, digestExpr)
+                dbFetch(db, digestExpr)
             if(inherits(keys, "try-error"))
                 return(keys)
             dbLazyLoad(db, globalenv(), keys)

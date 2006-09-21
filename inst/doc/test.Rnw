@@ -1,0 +1,22 @@
+\documentclass{article}
+\usepackage{Sweave}
+\title{Test Sweave Document}
+\author{Roger Peng}
+\begin{document}
+\maketitle
+Hello, this is a test Sweave document using cacheSweave.
+%% Default has 'cache = FALSE'
+<<setup>>=
+setCacheDir("testcache")
+@ 
+<<first,cache=TRUE>>=
+Sys.sleep(3)
+a <- rnorm(100)
+b <- a * .4 * rnorm(100, sd = 0.8)
+fit <- lm(b ~ a)
+@
+<<second>>=
+sumf <- summary(fit)
+print(sumf)
+@ 
+\end{document}
