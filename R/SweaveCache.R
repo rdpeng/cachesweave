@@ -1,3 +1,23 @@
+######################################################################
+## Copyright (C) 2006, Roger D. Peng <rpeng@jhsph.edu>
+##     
+## This program is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+## 
+## This program is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+## 
+## You should have received a copy of the GNU General Public License
+## along with this program; if not, write to the Free Software
+## Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+## 02110-1301, USA
+#####################################################################
+
+
 setCacheDir <- function(path) {
     assign("cacheDir", path, cacheEnv)
     dir.create(path, showWarnings = FALSE)
@@ -35,6 +55,9 @@ cacheSweave <- function(expr, prefix = NULL, envir = parent.frame(), keys = NULL
     dbLazyLoad(db, envir, keys)
 }
 
+######################################################################
+## Take a 'filehash' database and insert a bunch of key/value pairs
+
 dumpToDB <- function(db, list = character(0), envir = parent.frame()) {
     if(!is(db, "filehash"))
         stop("'db' should be a 'filehash' database")
@@ -49,7 +72,8 @@ dumpToDB <- function(db, list = character(0), envir = parent.frame()) {
 ######################################################################
 ######################################################################
 ## Taken/adapted from Sweave code by Friedrich Leisch, along the lines
-## of 'weaver' but more naive and we use 'filehash' databases
+## of 'weaver' from Bioconductor, but more naive and we use 'filehash'
+## databases for the backend.
 
 cacheSweaveDriver <- function() {
     list(
@@ -59,6 +83,96 @@ cacheSweaveDriver <- function() {
          finish = utils:::RweaveLatexFinish,
          checkopts = utils:::RweaveLatexOptions
          )
+}
+
+
+## Take an expression, evaluate it in a local environment and dump the
+## results to a database.  Associate the names of the dumped objects
+## with a digest of the expression.
+
+evalAndDumpToDB <- function(db, expr, digestExpr) {
+    env <- new.env(parent = globalenv())
+    eval(expr, env)
+    
+    ## Get newly assigned object names
+    keys <- ls(env, all.names = TRUE)
+
+    ## Associate the newly created keys with the digest of
+    ## the expression
+    dbInsert(db, digestExpr, keys)
+    
+    ## Dump the values of the keys to the database
+    dumpToDB(db, list = keys, envir = env)
+
+    keys
+}
+
+## The major modification is here: Rather than evaluate expressions
+## and leave them in the global environment, we evaluate them in a
+## local environment (that has globalenv() as the parent) and then
+## store the assignments in a 'filehash' database.  If an expression
+## does not give rise to new R objects, then nothing is saved.
+##
+## For each expression ('expr'), we compute a digest and associate
+## with that digest the names of the objects that were created by
+## evaluating the expression.  That way, for a given cached
+## expression, we know which keys to lazy-load from the cache when
+## evaluation is skipped.
+
+cacheSweaveEvalWithOpt <- function (expr, options, blockhash){
+    ## 'expr' is a single expression, so something like 'a <- 1'
+    res <- NULL
+
+    if(options$eval){
+        if(options$cache) {
+            cachedir <- getCacheDir()
+            dbName <- file.path(cachedir, paste(options$label, blockhash, sep = "_"))
+
+            ## Take a (MD5) digest of the expression; mangle the name
+            ## of the digest so it doesn't show up with 'ls()'
+            digestExpr <- paste(".__", digest(expr), "__.", sep = "")
+
+            ## First check to see if there is a database already for
+            ## this block of expressions; if not, create one.
+            if(!file.exists(dbName)) 
+                dbCreate(dbName)  
+            db <- dbInit(dbName)
+
+            ## Now that we have a database, check to see if the
+            ## current expression has been evaluated already (and
+            ## therefore is cached)            
+            keys <- if(!dbExists(db, digestExpr)) {
+                ## Evaluate the expression for the first time and dump
+                ## the resulting objects to the database; return a
+                ## vector containing the names of the objects created
+                ## on evaluation
+                try({
+                    evalAndDumpToDB(db, expr, digestExpr)
+                }, silent = TRUE)
+            }
+            else 
+                dbFetch(db, digestExpr)  ## Retrieve vector of keys
+                                         ## (object names) from the
+                                         ## database
+            if(inherits(keys, "try-error"))
+                return(keys)
+
+            ## Given the vector of keys, lazy-load them into the
+            ## global environment
+            dbLazyLoad(db, globalenv(), keys)
+        }
+        else {
+            ## If caching is turned off, just evaluate the expression
+            ## in the global environment            
+            res <- try(.Internal(eval.with.vis(expr, .GlobalEnv, baseenv())),
+                       silent=TRUE)
+            if(inherits(res, "try-error"))
+                return(res)
+            if(options$print | (options$term & res$visible))
+                print(res$value)
+        }
+    }
+    res
 }
 
 ## Need to add the 'cache' option to the list
@@ -246,62 +360,6 @@ cacheSweaveRuncode <- function(object, chunk, options)
     return(object)
 }
 
-evalAndDumpToDB <- function(db, expr, digestExpr) {
-    env <- new.env(parent = globalenv())
-    eval(expr, env)
-    
-    ## Get newly assigned object names
-    keys <- ls(env, all.names = TRUE)
-
-    ## Associate the newly created keys with the digest of
-    ## the expression
-    dbInsert(db, digestExpr, keys)
-    
-    ## Dump the values of the keys to the database
-    dumpToDB(db, list = keys, envir = env)
-
-    keys
-}
-
-cacheSweaveEvalWithOpt <- function (expr, options, blockhash){
-    ## 'expr' is a single expression, so something like 'a <- 1'
-    res <- NULL
-
-    if(options$eval){
-        if(options$cache) {
-            cachedir <- getCacheDir()
-            dbName <- file.path(cachedir, paste(options$label, blockhash, sep = "_"))
-
-            ## Mangle the name so it doesn't show up with 'ls()'
-            digestExpr <- paste(".__", digest(expr), "__.", sep = "")
-            
-            if(!file.exists(dbName)) 
-                dbCreate(dbName)  ## Database doesn't exist yet, so create it
-            db <- dbInit(dbName)
-
-            ## Database exists; check to see if this expression has
-            ## been evaluated already
-            keys <- if(!dbExists(db, digestExpr)) {
-                try({
-                    evalAndDumpToDB(db, expr, digestExpr)
-                }, silent = TRUE)
-            }
-            else 
-                dbFetch(db, digestExpr)
-            if(inherits(keys, "try-error"))
-                return(keys)
-            dbLazyLoad(db, globalenv(), keys)
-        }
-        else {
-            res <- try(.Internal(eval.with.vis(expr, .GlobalEnv, baseenv())),
-                       silent=TRUE)
-            if(inherits(res, "try-error")) return(res)
-            if(options$print | (options$term & res$visible))
-                print(res$value)
-        }
-    }
-    res
-}
 
 
 
