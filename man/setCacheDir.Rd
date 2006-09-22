@@ -16,7 +16,8 @@ getCacheDir()
 }
 \details{
   \code{setCacheDir} will create the cache directory if it does not
-  already exist.
+  already exist.  When the package \code{cacheSweave} is loaded, the
+  cache directory is initially set to the current directory (".").
 }
 \value{
   \code{getCacheDir} returns the current cache directory.
