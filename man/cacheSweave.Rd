@@ -20,7 +20,7 @@ cacheSweaveDriver()
 \details{
   \code{cacheSweaveDriver} is used directly with \code{Sweave} and is
   passed as the \code{driver} argument.  \code{cacheSweave} can be used
-  directly in R code.
+  within the R code.
 }
 \value{
   Nothing useful is returned.

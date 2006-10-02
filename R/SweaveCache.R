@@ -73,7 +73,8 @@ dumpToDB <- function(db, list = character(0), envir = parent.frame()) {
 ######################################################################
 ## Taken/adapted from Sweave code by Friedrich Leisch, along the lines
 ## of 'weaver' from Bioconductor, but more naive and we use 'filehash'
-## databases for the backend.
+## databases for the backend.  We also don't check dependencies on
+## previous chunks.
 
 cacheSweaveDriver <- function() {
     list(
@@ -133,7 +134,8 @@ cacheSweaveEvalWithOpt <- function (expr, options, blockhash){
             digestExpr <- paste(".__", digest(expr), "__.", sep = "")
 
             ## First check to see if there is a database already for
-            ## this block of expressions; if not, create one.
+            ## this block of expressions; if not, create one using the
+            ## default type.
             if(!file.exists(dbName)) 
                 dbCreate(dbName)  
             db <- dbInit(dbName)
