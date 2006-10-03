@@ -136,9 +136,15 @@ cacheSweaveEvalWithOpt <- function (expr, options, blockhash){
             ## First check to see if there is a database already for
             ## this block of expressions; if not, create one using the
             ## default type.
-            if(!file.exists(dbName)) 
-                dbCreate(dbName)  
-            db <- dbInit(dbName)
+
+            ## Use standard 'filehash' database
+            ## if(!file.exists(dbName)) 
+            ##     dbCreate(dbName)  
+            ## db <- dbInit(dbName)
+
+            ## Use 'filehashLocal' database
+            db <- new("filehashLocal", dir = dbName, name = basename(dbName))
+            dbCreate(db)
 
             ## Now that we have a database, check to see if the
             ## current expression has been evaluated already (and
@@ -160,7 +166,7 @@ cacheSweaveEvalWithOpt <- function (expr, options, blockhash){
                 return(keys)
 
             ## Given the vector of keys, lazy-load them into the
-            ## global environment
+            ## global environment in place of the actual objects
             dbLazyLoad(db, globalenv(), keys)
         }
         else {
@@ -180,12 +186,14 @@ cacheSweaveEvalWithOpt <- function (expr, options, blockhash){
 ## Need to add the 'cache' option to the list
 cacheSweaveSetup <- function(file, syntax,
                              output=NULL, quiet=FALSE, debug=FALSE, echo=TRUE,
-                             eval=TRUE, split=FALSE, stylepath=TRUE, pdf=TRUE, eps=TRUE,
-                             cache = FALSE) {
+                             eval=TRUE, split=FALSE, stylepath=TRUE, pdf=TRUE,
+                             eps=TRUE, cache = FALSE) {
     
     out <- utils:::RweaveLatexSetup(file, syntax, output=NULL, quiet=FALSE,
                                     debug=FALSE, echo=TRUE, eval=TRUE, split=FALSE,
                                     stylepath=TRUE, pdf=TRUE, eps=TRUE)
+
+    ## Add the cache option for code chunks
     out$options[["cache"]] <- cache
     out
 }

@@ -6,4 +6,5 @@ export(
        )
 
 import(filehash)
+import(filehashRemote)
 import(utils)
