@@ -5,6 +5,4 @@ export(
        "cacheSweaveDriver"
        )
 
-import(filehash)
-import(filehashRemote)
 import(utils)

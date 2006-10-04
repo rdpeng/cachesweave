@@ -3,7 +3,7 @@ Title: Tools for caching Sweave computations
 Version: 0.1
 Date: 2006-09-29
 LazyLoad: yes
-Depends: R (>= 2.3.1), digest, filehashRemote
+Depends: R (>= 2.3.1), digest, filehash, filehashRemote
 Imports: utils
 Author: Roger D. Peng <rpeng@jhsph.edu>
 Maintainer: Roger D. Peng <rpeng@jhsph.edu>

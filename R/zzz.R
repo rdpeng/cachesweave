@@ -1,6 +1,10 @@
 .onLoad <- function(lib, pkg) {
-    if(!require(digest, quietly = TRUE))
-        stop("'digest' package required")
+    pkgList <- c("filehashRemote", "digest")
+    
+    for(pkg in pkgList) {
+        if(!require(pkg, quietly = TRUE, character.only = TRUE))
+            stop(gettextf("'%s' package required", pkg))
+    }
     assign("cacheDir", ".", cacheEnv)
 }
 
