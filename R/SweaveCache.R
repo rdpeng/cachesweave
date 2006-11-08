@@ -17,6 +17,13 @@
 ## 02110-1301, USA
 #####################################################################
 
+setBaseURL <- function(URL) {
+    assign("baseURL", URL, cacheEnv)
+}
+
+getBaseURL <- function() {
+    get("baseURL", cacheEnv)
+}
 
 setCacheDir <- function(path) {
     assign("cacheDir", path, cacheEnv)
@@ -27,8 +34,7 @@ getCacheDir <- function() {
     get("cacheDir", cacheEnv)
 }
 
-## NOTE: This function uses 'DB1' format without asking.  Eventually
-## we will switch to the filehashRemote/Local stuff.
+## NOTE: This function uses 'DB1' format without asking.  
 
 cacheSweave <- function(expr, prefix = NULL, envir = parent.frame(), keys = NULL) {
     expr <- substitute(expr)
@@ -62,7 +68,7 @@ dumpToDB <- function(db, list = character(0), envir = parent.frame()) {
     if(!is(db, "filehash"))
         stop("'db' should be a 'filehash' database")
     for(i in seq(along = list))
-        dbInsert(db, list[i], get(list[i], envir))
+        dbInsert(db, list[i], get(list[i], envir, inherits = FALSE))
     invisible(db)
 }
 
@@ -72,7 +78,7 @@ dumpToDB <- function(db, list = character(0), envir = parent.frame()) {
 ######################################################################
 ######################################################################
 ## Taken/adapted from Sweave code by Friedrich Leisch, along the lines
-## of 'weaver' from Bioconductor, but more naive and we use 'filehash'
+## of 'weaver' from Bioconductor, but more naive and we use 'stashR'
 ## databases for the backend.  We also don't check dependencies on
 ## previous chunks.
 
@@ -111,7 +117,7 @@ evalAndDumpToDB <- function(db, expr, digestExpr) {
 ## The major modification is here: Rather than evaluate expressions
 ## and leave them in the global environment, we evaluate them in a
 ## local environment (that has globalenv() as the parent) and then
-## store the assignments in a 'filehash' database.  If an expression
+## store the assignments in a 'stashR' database.  If an expression
 ## does not give rise to new R objects, then nothing is saved.
 ##
 ## For each expression ('expr'), we compute a digest and associate
@@ -120,31 +126,25 @@ evalAndDumpToDB <- function(db, expr, digestExpr) {
 ## expression, we know which keys to lazy-load from the cache when
 ## evaluation is skipped.
 
-cacheSweaveEvalWithOpt <- function (expr, options, blockhash){
+cacheSweaveEvalWithOpt <- function (expr, options, chunkHash){
     ## 'expr' is a single expression, so something like 'a <- 1'
     res <- NULL
 
     if(options$eval){
         if(options$cache) {
             cachedir <- getCacheDir()
-            dbName <- file.path(cachedir, paste(options$label, blockhash, sep = "_"))
+            dbName <- file.path(cachedir, paste(options$label, chunkHash, sep = "_"))
 
             ## Take a (MD5) digest of the expression; mangle the name
             ## of the digest so it doesn't show up with 'ls()'
-            digestExpr <- paste(".__", digest(expr), "__.", sep = "")
+            digestExpr <- paste(".__", digest(expr), "__", sep = "")
 
             ## First check to see if there is a database already for
-            ## this block of expressions; if not, create one using the
-            ## default type.
+            ## this block of expressions; if not, create one 
 
-            ## Use standard 'filehash' database
-            ## if(!file.exists(dbName)) 
-            ##     dbCreate(dbName)  
-            ## db <- dbInit(dbName)
-
-            ## Use 'filehashLocal' database
-            db <- new("filehashLocal", dir = dbName, name = basename(dbName))
-            dbCreate(db)
+            ## Use 'localDB' database from 'stashR' package
+            db <- new("localDB", dir = dbName, name = basename(dbName))
+            ## dbCreate(db)
 
             ## Now that we have a database, check to see if the
             ## current expression has been evaluated already (and
