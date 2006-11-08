@@ -1,5 +1,5 @@
 .onLoad <- function(lib, pkg) {
-    pkgList <- c("filehashRemote", "digest")
+    pkgList <- c("stashR", "digest")
     
     for(pkg in pkgList) {
         if(!require(pkg, quietly = TRUE, character.only = TRUE))
