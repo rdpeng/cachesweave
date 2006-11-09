@@ -7,12 +7,12 @@
   Set/Get base URL for embedding links
 }
 \usage{
-setBaseURL(path)
+setBaseURL(URL)
 getBaseURL()
 }
 
 \arguments{
-  \item{path}{character, URL for embedding links}
+  \item{URL}{character, URL for embedding links}
 }
 \details{
   \code{setBaseURL} will set the base URL for embedding links in a
