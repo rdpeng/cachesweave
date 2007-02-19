@@ -1,9 +1,9 @@
 export(
-       "cacheSweave",
        "setCacheDir",
        "getCacheDir",
        "setBaseURL",
        "getBaseURL",
+       "setDataMapFile",
        "cacheSweaveDriver"
        )
 

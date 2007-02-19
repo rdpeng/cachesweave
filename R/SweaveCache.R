@@ -17,6 +17,16 @@
 ## 02110-1301, USA
 #####################################################################
 
+setDataMapFile <- function(filename, overwrite = FALSE) {
+    if(file.exists(filename) && overwrite) 
+        file.create(filename)
+    assign("DataMapFile", filename, cacheEnv)
+}
+
+getDataMapFile <- function() {
+    get("DataMapFile", cacheEnv)
+}
+
 setBaseURL <- function(URL) {
     assign("baseURL", URL, cacheEnv)
 }
@@ -32,33 +42,6 @@ setCacheDir <- function(path) {
 
 getCacheDir <- function() {
     get("cacheDir", cacheEnv)
-}
-
-## NOTE: This function uses 'DB1' format without asking.  
-
-cacheSweave <- function(expr, prefix = NULL, envir = parent.frame(), keys = NULL) {
-    expr <- substitute(expr)
-    cachedir <- getCacheDir()
-
-    if(is.null(cachedir))
-        stop("need to set cache directory with 'setCacheDir'")
-    dbName <- file.path(cachedir, paste(prefix, digest(expr), sep = "_"))
-
-    if(!file.exists(dbName)) {
-        env <- new.env(parent = globalenv())
-        eval(expr, env)
-
-        ## Create/initialize caching database
-        dbCreate(dbName)
-        db <- dbInit(dbName)
-
-        ## Only save objects specified by 'keys'
-        if(is.null(keys))
-            keys <- ls(env, all.names = TRUE)
-        dumpToDB(db, list = keys, envir = env)
-    }
-    db <- dbInit(dbName)
-    dbLazyLoad(db, envir, keys)
 }
 
 ######################################################################
@@ -114,6 +97,10 @@ evalAndDumpToDB <- function(db, expr, digestExpr) {
     keys
 }
 
+makeChunkDatabaseName <- function(cachedir, options, chunkDigest) {
+    file.path(cachedir, paste(options$label, chunkDigest, sep = "_"))
+}
+
 ## The major modification is here: Rather than evaluate expressions
 ## and leave them in the global environment, we evaluate them in a
 ## local environment (that has globalenv() as the parent) and then
@@ -126,14 +113,17 @@ evalAndDumpToDB <- function(db, expr, digestExpr) {
 ## expression, we know which keys to lazy-load from the cache when
 ## evaluation is skipped.
 
-cacheSweaveEvalWithOpt <- function (expr, options, chunkHash){
+cacheSweaveEvalWithOpt <- function (expr, options, chunkDigest){
     ## 'expr' is a single expression, so something like 'a <- 1'
     res <- NULL
 
     if(options$eval){
         if(options$cache) {
             cachedir <- getCacheDir()
-            dbName <- file.path(cachedir, paste(options$label, chunkHash, sep = "_"))
+
+            ## Create database name from chunk label and chunk MD5
+            ## digest
+            dbName <- makeChunkDatabaseName(cachedir, options, chunkDigest)
 
             ## Take a (MD5) digest of the expression; mangle the name
             ## of the digest so it doesn't show up with 'ls()'
@@ -142,9 +132,10 @@ cacheSweaveEvalWithOpt <- function (expr, options, chunkHash){
             ## First check to see if there is a database already for
             ## this block of expressions; if not, create one 
 
-            ## Use 'localDB' database from 'stashR' package
+            ## Use 'localDB' database from 'stashR' package; all
+            ## necessary directories are created by the 'initialize()'
+            ## method.  If directories already exist, nothing is done.
             db <- new("localDB", dir = dbName, name = basename(dbName))
-            ## dbCreate(db)
 
             ## Now that we have a database, check to see if the
             ## current expression has been evaluated already (and
@@ -160,8 +151,8 @@ cacheSweaveEvalWithOpt <- function (expr, options, chunkHash){
             }
             else 
                 dbFetch(db, digestExpr)  ## Retrieve vector of keys
-                                         ## (object names) from the
-                                         ## database
+            ## (object names) from the
+            ## database
             if(inherits(keys, "try-error"))
                 return(keys)
 
@@ -197,7 +188,7 @@ cacheSweaveSetup <- function(file, syntax,
     out$options[["cache"]] <- cache
     out
 }
-    
+
 
 ## This function is essentially unchanged, except I compute the digest
 ## of the entire chunk and also use 'cacheSweaveEvalWithOpt' instead.
@@ -244,7 +235,21 @@ cacheSweaveRuncode <- function(object, chunk, options)
     chunkexps <- try(parse(text=chunk), silent=TRUE)
     RweaveTryStop(chunkexps, options)
 
-    chunkHash <- digest(chunkexps)
+######################################################################
+    ## Adding my own stuff here [RDP]
+    
+    chunkDigest <- digest(chunkexps)
+
+    mapFile <- tryCatch(getDataMapFile(), error = function(e) NULL)
+
+    if(!is.null(mapFile) && isTRUE(options$cache)) {
+        dbName <- makeChunkDatabaseName(getCacheDir(), options, chunkDigest)
+        mapEntry <- data.frame(chunk = options$label, path = dbName)
+        write.dcf(mapEntry, file = mapFile, append = TRUE)
+    }
+    
+    ## End adding my own stuff [RDP]
+######################################################################
     
     openSinput <- FALSE
     openSchunk <- FALSE
@@ -276,12 +281,12 @@ cacheSweaveRuncode <- function(object, chunk, options)
                 file=chunkout, append=TRUE, sep="")
         }
 
-        # tmpcon <- textConnection("output", "w")
-        # avoid the limitations (and overhead) of output text connections
+                                        # tmpcon <- textConnection("output", "w")
+                                        # avoid the limitations (and overhead) of output text connections
         tmpcon <- file()
         sink(file=tmpcon)
         err <- NULL
-        if(options$eval) err <- cacheSweaveEvalWithOpt(ce, options, chunkHash)
+        if(options$eval) err <- cacheSweaveEvalWithOpt(ce, options, chunkDigest)
         cat("\n") # make sure final line is complete
         sink()
         output <- readLines(tmpcon)
@@ -405,15 +410,43 @@ cacheSweaveRuncode <- function(object, chunk, options)
 ######################################################################
 ## Old version that uses R workspaces instead of filehash databases
 
-cacheSweaveOld <- function(name, expr, envir = parent.frame()) {
-    if(!file.exists(name)) {
-        env <- new.env()
-        local(eval(expr), env)
-        save(list = ls(env, all.names = TRUE), file = name, compress = TRUE,
-             envir = env)
-        for(n in ls(env, all.names = TRUE))
-            assign(n, get(n, env), envir)
-    }
-    else
-        load(name, envir)
-}
+## cacheSweaveOld <- function(name, expr, envir = parent.frame()) {
+##     if(!file.exists(name)) {
+##         env <- new.env()
+##         local(eval(expr), env)
+##         save(list = ls(env, all.names = TRUE), file = name, compress = TRUE,
+##              envir = env)
+##         for(n in ls(env, all.names = TRUE))
+##             assign(n, get(n, env), envir)
+##     }
+##     else
+##         load(name, envir)
+## }
+
+## NOTE: This function uses 'DB1' format without asking.  
+
+## cacheSweave <- function(expr, prefix = NULL, envir = parent.frame(), keys = NULL) {
+##     expr <- substitute(expr)
+##     cachedir <- getCacheDir()
+## 
+##     if(is.null(cachedir))
+##         stop("need to set cache directory with 'setCacheDir'")
+##     dbName <- file.path(cachedir, paste(prefix, digest(expr), sep = "_"))
+## 
+##     if(!file.exists(dbName)) {
+##         env <- new.env(parent = globalenv())
+##         eval(expr, env)
+## 
+##         ## Create/initialize caching database
+##         dbCreate(dbName)
+##         db <- dbInit(dbName)
+## 
+##         ## Only save objects specified by 'keys'
+##         if(is.null(keys))
+##             keys <- ls(env, all.names = TRUE)
+##         dumpToDB(db, list = keys, envir = env)
+##     }
+##     db <- dbInit(dbName)
+##     dbLazyLoad(db, envir, keys)
+## }
+
