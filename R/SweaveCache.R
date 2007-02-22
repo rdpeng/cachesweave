@@ -178,7 +178,7 @@ cacheSweaveEvalWithOpt <- function (expr, options, chunkDigest){
     res
 }
 
-## Need to add the 'cache' option to the list
+## Need to add the 'cache', 'filename' option to the list
 cacheSweaveSetup <- function(file, syntax,
                              output=NULL, quiet=FALSE, debug=FALSE, echo=TRUE,
                              eval=TRUE, split=FALSE, stylepath=TRUE, pdf=TRUE,
@@ -247,10 +247,15 @@ cacheSweaveRuncode <- function(object, chunk, options)
 
     ## If there's a data map file then write the chunk name and the
     ## directory of the chunk database to the map file (in DCF format)
-    if(!inherits(mapFile, "try-error") && isTRUE(options$cache)) {
-        dbName <- makeChunkDatabaseName(getCacheDir(), options, chunkDigest)
-        mapEntry <- data.frame(chunk = options$label, path = dbName)
-        write.dcf(mapEntry, file = mapFile, append = TRUE)
+    if(!inherits(mapFile, "try-error")) {
+        dbName <- if(isTRUE(options$cache)) 
+            makeChunkDatabaseName(getCacheDir(), options, chunkDigest)
+        else
+            ""
+        mapEntry <- data.frame(chunk = options$label,
+                               chunkprefix = chunkprefix,
+                               cacheDB = dbName)
+        write.dcf(mapEntry, file = mapFile, append = TRUE, width = 1000)
     }
     
     ## End adding my own stuff [RDP]
