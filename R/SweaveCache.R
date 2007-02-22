@@ -45,20 +45,6 @@ getCacheDir <- function() {
 }
 
 ######################################################################
-## Take a 'filehash' database and insert a bunch of key/value pairs
-
-dumpToDB <- function(db, list = character(0), envir = parent.frame()) {
-    if(!is(db, "filehash"))
-        stop("'db' should be a 'filehash' database")
-    for(i in seq(along = list))
-        dbInsert(db, list[i], get(list[i], envir, inherits = FALSE))
-    invisible(db)
-}
-
-
-
-
-######################################################################
 ######################################################################
 ## Taken/adapted from Sweave code by Friedrich Leisch, along the lines
 ## of 'weaver' from Bioconductor, but more naive and we use 'stashR'
@@ -76,11 +62,23 @@ cacheSweaveDriver <- function() {
 }
 
 
+######################################################################
+## Take a 'filehash' database and insert a bunch of key/value pairs
+
+dumpToDB <- function(db, list = character(0), envir = parent.frame()) {
+    if(!is(db, "filehash"))
+        stop("'db' should be a 'filehash' database")
+    for(i in seq(along = list))
+        dbInsert(db, list[i], get(list[i], envir, inherits = FALSE))
+    invisible(db)
+}
+
+
 ## Take an expression, evaluate it in a local environment and dump the
 ## results to a database.  Associate the names of the dumped objects
 ## with a digest of the expression.
 
-evalAndDumpToDB <- function(db, expr, digestExpr) {
+evalAndDumpToDB <- function(db, expr, exprDigest) {
     env <- new.env(parent = globalenv())
     eval(expr, env)
     
@@ -89,7 +87,7 @@ evalAndDumpToDB <- function(db, expr, digestExpr) {
 
     ## Associate the newly created keys with the digest of
     ## the expression
-    dbInsert(db, digestExpr, keys)
+    dbInsert(db, exprDigest, keys)
     
     ## Dump the values of the keys to the database
     dumpToDB(db, list = keys, envir = env)
@@ -99,6 +97,10 @@ evalAndDumpToDB <- function(db, expr, digestExpr) {
 
 makeChunkDatabaseName <- function(cachedir, options, chunkDigest) {
     file.path(cachedir, paste(options$label, chunkDigest, sep = "_"))
+}
+
+mangleDigest <- function(x) {
+    paste(".__", x, "__", sep = "")
 }
 
 ## The major modification is here: Rather than evaluate expressions
@@ -127,7 +129,7 @@ cacheSweaveEvalWithOpt <- function (expr, options, chunkDigest){
 
             ## Take an MD5 digest of the expression; mangle the name
             ## of the digest so it doesn't show up with 'ls()'
-            exprDigest <- paste(".__", digest(expr), "__", sep = "")
+            exprDigest <- mangleDigest(digest(expr))
 
             ## Use 'localDB' database from 'stashR' package; all
             ## necessary directories are created by the 'initialize()'
@@ -140,8 +142,8 @@ cacheSweaveEvalWithOpt <- function (expr, options, chunkDigest){
             keys <- if(!dbExists(db, exprDigest)) {
                 ## Evaluate the expression for the first time and dump
                 ## the resulting objects to the database; return a
-                ## vector containing the names of the objects created
-                ## on evaluation
+                ## character vector containing the names of the
+                ## objects created on evaluation
                 try({
                     evalAndDumpToDB(db, expr, exprDigest)
                 }, silent = TRUE)
@@ -158,7 +160,8 @@ cacheSweaveEvalWithOpt <- function (expr, options, chunkDigest){
                 return(keys)
 
             ## Given the vector of keys, lazy-load them into the
-            ## global environment in place of the actual objects
+            ## global environment and replace the actual objects with
+            ## promises
             dbLazyLoad(db, globalenv(), keys)
         }
         else {
@@ -240,12 +243,11 @@ cacheSweaveRuncode <- function(object, chunk, options)
     ## Adding my own stuff here [RDP]
     
     chunkDigest <- digest(chunkexps)
-
     mapFile <- try(getDataMapFile(), silent = TRUE)
 
     ## If there's a data map file then write the chunk name and the
     ## directory of the chunk database to the map file (in DCF format)
-    if(!inherits(mapFile, "try-error")) && isTRUE(options$cache)) {
+    if(!inherits(mapFile, "try-error") && isTRUE(options$cache)) {
         dbName <- makeChunkDatabaseName(getCacheDir(), options, chunkDigest)
         mapEntry <- data.frame(chunk = options$label, path = dbName)
         write.dcf(mapEntry, file = mapFile, append = TRUE)
