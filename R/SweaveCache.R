@@ -20,28 +20,28 @@
 setDataMapFile <- function(filename, overwrite = FALSE) {
     if(file.exists(filename) && overwrite) 
         file.create(filename)
-    assign("DataMapFile", filename, cacheEnv)
+    assign("DataMapFile", filename, .cacheEnv)
 }
 
 getDataMapFile <- function() {
-    get("DataMapFile", cacheEnv)
+    get("DataMapFile", .cacheEnv, inherits = FALSE)
 }
 
 setBaseURL <- function(URL) {
-    assign("baseURL", URL, cacheEnv)
+    assign("baseURL", URL, .cacheEnv)
 }
 
 getBaseURL <- function() {
-    get("baseURL", cacheEnv)
+    get("baseURL", .cacheEnv, inherits = FALSE)
 }
 
 setCacheDir <- function(path) {
-    assign("cacheDir", path, cacheEnv)
+    assign("cacheDir", path, .cacheEnv)
     dir.create(path, showWarnings = FALSE)
 }
 
 getCacheDir <- function() {
-    get("cacheDir", cacheEnv)
+    get("cacheDir", .cacheEnv, inherits = FALSE)
 }
 
 ######################################################################
@@ -125,12 +125,9 @@ cacheSweaveEvalWithOpt <- function (expr, options, chunkDigest){
             ## digest
             dbName <- makeChunkDatabaseName(cachedir, options, chunkDigest)
 
-            ## Take a (MD5) digest of the expression; mangle the name
+            ## Take an MD5 digest of the expression; mangle the name
             ## of the digest so it doesn't show up with 'ls()'
-            digestExpr <- paste(".__", digest(expr), "__", sep = "")
-
-            ## First check to see if there is a database already for
-            ## this block of expressions; if not, create one 
+            exprDigest <- paste(".__", digest(expr), "__", sep = "")
 
             ## Use 'localDB' database from 'stashR' package; all
             ## necessary directories are created by the 'initialize()'
@@ -140,19 +137,23 @@ cacheSweaveEvalWithOpt <- function (expr, options, chunkDigest){
             ## Now that we have a database, check to see if the
             ## current expression has been evaluated already (and
             ## therefore is cached)            
-            keys <- if(!dbExists(db, digestExpr)) {
+            keys <- if(!dbExists(db, exprDigest)) {
                 ## Evaluate the expression for the first time and dump
                 ## the resulting objects to the database; return a
                 ## vector containing the names of the objects created
                 ## on evaluation
                 try({
-                    evalAndDumpToDB(db, expr, digestExpr)
+                    evalAndDumpToDB(db, expr, exprDigest)
                 }, silent = TRUE)
             }
-            else 
-                dbFetch(db, digestExpr)  ## Retrieve vector of keys
-            ## (object names) from the
-            ## database
+            else {
+                ## Retrieve character vector of keys (object names)
+                ## from the database
+                dbFetch(db, exprDigest)
+            }
+            ## If there was an error trying to evaluate the
+            ## expression, then just return the error/condition object
+            ## and let the Sweave driver deal with it.            
             if(inherits(keys, "try-error"))
                 return(keys)
 
@@ -240,9 +241,11 @@ cacheSweaveRuncode <- function(object, chunk, options)
     
     chunkDigest <- digest(chunkexps)
 
-    mapFile <- tryCatch(getDataMapFile(), error = function(e) NULL)
+    mapFile <- try(getDataMapFile(), silent = TRUE)
 
-    if(!is.null(mapFile) && isTRUE(options$cache)) {
+    ## If there's a data map file then write the chunk name and the
+    ## directory of the chunk database to the map file (in DCF format)
+    if(!inherits(mapFile, "try-error")) && isTRUE(options$cache)) {
         dbName <- makeChunkDatabaseName(getCacheDir(), options, chunkDigest)
         mapEntry <- data.frame(chunk = options$label, path = dbName)
         write.dcf(mapEntry, file = mapFile, append = TRUE)
@@ -281,8 +284,8 @@ cacheSweaveRuncode <- function(object, chunk, options)
                 file=chunkout, append=TRUE, sep="")
         }
 
-                                        # tmpcon <- textConnection("output", "w")
-                                        # avoid the limitations (and overhead) of output text connections
+        ## tmpcon <- textConnection("output", "w")
+        ## avoid the limitations (and overhead) of output text connections
         tmpcon <- file()
         sink(file=tmpcon)
         err <- NULL
