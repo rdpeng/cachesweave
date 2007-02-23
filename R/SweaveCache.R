@@ -57,7 +57,7 @@ cacheSweaveDriver <- function() {
          runcode = cacheSweaveRuncode,
          writedoc = utils:::RweaveLatexWritedoc,
          finish = utils:::RweaveLatexFinish,
-         checkopts = utils:::RweaveLatexOptions
+         checkopts = utils::RweaveLatexOptions
          )
 }
 
@@ -188,11 +188,23 @@ cacheSweaveSetup <- function(file, syntax,
                                     debug=FALSE, echo=TRUE, eval=TRUE, split=FALSE,
                                     stylepath=TRUE, pdf=TRUE, eps=TRUE)
 
-    ## Add the cache option for code chunks
+    ######################################################################
+    ## Additions here [RDP]
+    ## Add the (non-standard) options for code chunks with caching
     out$options[["cache"]] <- cache
+
+    out[["mapFile"]] <- makeMapFileName(file)
+    file.create(out[["mapFile"]])
+    
+    ## End additions [RDP]
+    ######################################################################
     out
 }
 
+
+makeMapFileName <- function(Rnwfile) {
+    sub("\\.Rnw$", "\\.map", Rnwfile)
+}
 
 ## This function is essentially unchanged, except I compute the digest
 ## of the entire chunk and also use 'cacheSweaveEvalWithOpt' instead.
@@ -243,20 +255,19 @@ cacheSweaveRuncode <- function(object, chunk, options)
     ## Adding my own stuff here [RDP]
     
     chunkDigest <- digest(chunkexps)
-    mapFile <- try(getDataMapFile(), silent = TRUE)
+    ## mapFile <- try(getDataMapFile(), silent = TRUE)
+    mapFile <- object[["mapFile"]]
 
     ## If there's a data map file then write the chunk name and the
     ## directory of the chunk database to the map file (in DCF format)
-    if(!inherits(mapFile, "try-error")) {
-        dbName <- if(isTRUE(options$cache)) 
-            makeChunkDatabaseName(getCacheDir(), options, chunkDigest)
-        else
-            ""
-        mapEntry <- data.frame(chunk = options$label,
-                               chunkprefix = chunkprefix,
-                               cacheDB = dbName)
-        write.dcf(mapEntry, file = mapFile, append = TRUE, width = 1000)
-    }
+    dbName <- if(isTRUE(options$cache)) 
+        makeChunkDatabaseName(getCacheDir(), options, chunkDigest)
+    else
+        ""
+    mapEntry <- data.frame(chunk = options$label,
+                           chunkprefix = chunkprefix,
+                           cacheDB = dbName)
+    write.dcf(mapEntry, file = mapFile, append = TRUE, width = 1000)
     
     ## End adding my own stuff [RDP]
 ######################################################################
