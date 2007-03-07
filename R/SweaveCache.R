@@ -193,8 +193,9 @@ cacheSweaveSetup <- function(file, syntax,
     ## Add the (non-standard) options for code chunks with caching
     out$options[["cache"]] <- cache
 
+    ## We assume that each .Rnw file gets its own map file
     out[["mapFile"]] <- makeMapFileName(file)
-    file.create(out[["mapFile"]])
+    file.create(out[["mapFile"]])  ## Overwrite an existing file
     
     ## End additions [RDP]
     ######################################################################
@@ -206,8 +207,11 @@ makeMapFileName <- function(Rnwfile) {
     sub("\\.Rnw$", "\\.map", Rnwfile)
 }
 
-## This function is essentially unchanged, except I compute the digest
-## of the entire chunk and also use 'cacheSweaveEvalWithOpt' instead.
+## This function is essentially unchanged from the original Sweave
+## version, except I compute the digest of the entire chunk, write out
+## information to the map file, and use 'cacheSweaveEvalWithOpt'
+## instead.  Note that everything in this function operates at the
+## chunk level.
 
 cacheSweaveRuncode <- function(object, chunk, options)
 {
@@ -255,7 +259,6 @@ cacheSweaveRuncode <- function(object, chunk, options)
     ## Adding my own stuff here [RDP]
     
     chunkDigest <- digest(chunkexps)
-    ## mapFile <- try(getDataMapFile(), silent = TRUE)
     mapFile <- object[["mapFile"]]
 
     ## If there's a data map file then write the chunk name and the
@@ -264,10 +267,24 @@ cacheSweaveRuncode <- function(object, chunk, options)
         makeChunkDatabaseName(getCacheDir(), options, chunkDigest)
     else
         ""
+    ## Capture figure filenames; default to PDF, otherwise use EPS.
+    ## Filenames are <chunkprefix>.<extenstion>, which could change in
+    ## the future depending on Sweave implementation details
+    figname <- ""
+    if(options$fig && options$eval) {
+        figname <- if(options$pdf)
+            paste(chunkprefix, "pdf", sep = ".")
+        else if(options$eps)
+            paste(chunkprefix, "eps", sep = ".")
+        else
+            ""
+    }
+    ## Write out map file entry
     mapEntry <- data.frame(chunk = options$label,
                            chunkprefix = chunkprefix,
+                           fig = figname,
                            cacheDB = dbName)
-    write.dcf(mapEntry, file = mapFile, append = TRUE, width = 1000)
+    write.dcf(mapEntry, file = mapFile, append = TRUE, width = 2000)
     
     ## End adding my own stuff [RDP]
 ######################################################################
