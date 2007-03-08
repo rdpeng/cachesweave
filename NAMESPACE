@@ -3,7 +3,9 @@ export(
        "getCacheDir",
        "setBaseURL",
        "getBaseURL",
-       "setDataMapFile",
        "cacheSweaveDriver"
        )
+
+import("utils")
+
 
