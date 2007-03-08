@@ -17,16 +17,6 @@
 ## 02110-1301, USA
 #####################################################################
 
-setDataMapFile <- function(filename, overwrite = FALSE) {
-    if(file.exists(filename) && overwrite) 
-        file.create(filename)
-    assign("DataMapFile", filename, .cacheEnv)
-}
-
-getDataMapFile <- function() {
-    get("DataMapFile", .cacheEnv, inherits = FALSE)
-}
-
 setBaseURL <- function(URL) {
     assign("baseURL", URL, .cacheEnv)
 }
@@ -73,6 +63,11 @@ dumpToDB <- function(db, list = character(0), envir = parent.frame()) {
     invisible(db)
 }
 
+copy2env <- function(keys, fromEnv, toEnv) {
+    for(key in keys) {
+        assign(key, get(key, fromEnv, inherits = FALSE), toEnv)
+    }
+}
 
 ## Take an expression, evaluate it in a local environment and dump the
 ## results to a database.  Associate the names of the dumped objects
@@ -80,7 +75,17 @@ dumpToDB <- function(db, list = character(0), envir = parent.frame()) {
 
 evalAndDumpToDB <- function(db, expr, exprDigest) {
     env <- new.env(parent = globalenv())
+    keys.global0 <- ls(globalenv())
+
+    ## Evaluate the expression
     eval(expr, env)
+
+    ## If 'source()' was used, there may be new symbols in the global
+    ## environment, unless 'source(local = TRUE)' was used
+    keys.global1 <- ls(globalenv())
+    new.global <- setdiff(keys.global1, keys.global0)
+
+    copy2env(new.global, globalenv(), env)
     
     ## Get newly assigned object names
     keys <- ls(env, all.names = TRUE)
