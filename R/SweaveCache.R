@@ -288,7 +288,8 @@ cacheSweaveRuncode <- function(object, chunk, options)
     mapEntry <- data.frame(chunk = options$label,
                            chunkprefix = chunkprefix,
                            fig = figname,
-                           cacheDB = dbName)
+                           cacheDB = dbName,
+                           time = Sys.time())
     write.dcf(mapEntry, file = mapFile, append = TRUE, width = 2000)
     
     ## End adding my own stuff [RDP]
