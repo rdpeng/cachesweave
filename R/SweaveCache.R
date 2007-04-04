@@ -17,14 +17,6 @@
 ## 02110-1301, USA
 #####################################################################
 
-setBaseURL <- function(URL) {
-    assign("baseURL", URL, .cacheEnv)
-}
-
-getBaseURL <- function() {
-    get("baseURL", .cacheEnv, inherits = FALSE)
-}
-
 setCacheDir <- function(path) {
     assign("cacheDir", path, .cacheEnv)
     dir.create(path, showWarnings = FALSE)
@@ -82,7 +74,7 @@ evalAndDumpToDB <- function(db, expr, exprDigest) {
 
     ## If 'source()' was used, there may be new symbols in the global
     ## environment, unless 'source(local = TRUE)' was used
-    keys.global1 <- ls(globalenv())
+    keys.global1 <- ls(globalenv())  ## doesn't capture names beginning with '.'
     new.global <- setdiff(keys.global1, keys.global0)
 
     copy2env(new.global, globalenv(), env)
