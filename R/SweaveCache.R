@@ -37,8 +37,8 @@ cacheSweaveDriver <- function() {
     list(
          setup = cacheSweaveSetup,
          runcode = cacheSweaveRuncode,
-         writedoc = utils:::RweaveLatexWritedoc,
-         finish = utils:::RweaveLatexFinish,
+         writedoc = utils::RweaveLatexWritedoc,
+         finish = utils::RweaveLatexFinish,
          checkopts = utils::RweaveLatexOptions
          )
 }
@@ -181,7 +181,7 @@ cacheSweaveSetup <- function(file, syntax,
                              eval=TRUE, split=FALSE, stylepath=TRUE, pdf=TRUE,
                              eps=TRUE, cache = FALSE) {
     
-    out <- utils:::RweaveLatexSetup(file, syntax, output=NULL, quiet=FALSE,
+    out <- utils::RweaveLatexSetup(file, syntax, output=NULL, quiet=FALSE,
                                     debug=FALSE, echo=TRUE, eval=TRUE, split=FALSE,
                                     stylepath=TRUE, pdf=TRUE, eps=TRUE)
 
