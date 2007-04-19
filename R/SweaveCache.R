@@ -185,7 +185,7 @@ cacheSweaveSetup <- function(file, syntax,
                                     debug=FALSE, echo=TRUE, eval=TRUE, split=FALSE,
                                     stylepath=TRUE, pdf=TRUE, eps=TRUE)
 
-    ######################################################################
+######################################################################
     ## Additions here [RDP]
     ## Add the (non-standard) options for code chunks with caching
     out$options[["cache"]] <- cache
@@ -195,7 +195,7 @@ cacheSweaveSetup <- function(file, syntax,
     file.create(out[["mapFile"]])  ## Overwrite an existing file
     
     ## End additions [RDP]
-    ######################################################################
+######################################################################
     out
 }
 
@@ -210,8 +210,7 @@ makeMapFileName <- function(Rnwfile) {
 ## instead.  Note that everything in this function operates at the
 ## chunk level.
 
-cacheSweaveRuncode <- function(object, chunk, options)
-{
+cacheSweaveRuncode <- function(object, chunk, options) {
     if(!(options$engine %in% c("R", "S"))){
         return(object)
     }
@@ -219,6 +218,7 @@ cacheSweaveRuncode <- function(object, chunk, options)
     if(!object$quiet){
         cat(formatC(options$chunknr, width=2), ":")
         if(options$echo) cat(" echo")
+        if(options$keep.source) cat(" keep.source")
         if(options$eval){
             if(options$print) cat(" print")
             if(options$term) cat(" term")
@@ -236,7 +236,8 @@ cacheSweaveRuncode <- function(object, chunk, options)
     chunkprefix <- RweaveChunkPrefix(options)
 
     if(options$split){
-        chunkout <- object$chunkout[[chunkprefix]]
+        ## [x][[1]] avoids partial matching of x
+        chunkout <- object$chunkout[chunkprefix][[1]]
         if(is.null(chunkout)){
             chunkout <- file(paste(chunkprefix, "tex", sep="."), "w")
             if(!is.null(options$label))
@@ -245,6 +246,9 @@ cacheSweaveRuncode <- function(object, chunk, options)
     }
     else
         chunkout <- object$output
+
+    saveopts <- options(keep.source=options$keep.source)
+    on.exit(options(saveopts))
 
     SweaveHooks(options, run=TRUE)
 
@@ -293,28 +297,63 @@ cacheSweaveRuncode <- function(object, chunk, options)
     if(length(chunkexps)==0)
         return(object)
 
-    ## Cycle over individual expressions
+    srclines <- attr(chunk, "srclines")
+    linesout <- integer(0)
+    srcline <- srclines[1]
+    
+    srcrefs <- attr(chunkexps, "srcref")
+    if (options$expand)
+        lastshown <- 0
+    else
+        lastshown <- srcline - 1
+    thisline <- 0
     for(nce in 1:length(chunkexps))
     {
         ce <- chunkexps[[nce]]
-        dce <- deparse(ce, width.cutoff=0.75*getOption("width"))
+        if (nce <= length(srcrefs) && !is.null(srcref <- srcrefs[[nce]])) {
+            if (options$expand) {
+                srcfile <- attr(srcref, "srcfile")
+                showfrom <- srcref[1]
+                showto <- srcref[3]
+            } else {
+                srcfile <- object$srcfile
+                showfrom <- srclines[srcref[1]]
+                showto <- srclines[srcref[3]]
+            }
+            dce <- getSrcLines(srcfile, lastshown+1, showto)
+            leading <- showfrom-lastshown
+            lastshown <- showto
+            srcline <- srclines[srcref[3]]
+            while (length(dce) && length(grep("^[ \\t]*$", dce[1]))) {
+                dce <- dce[-1]
+                leading <- leading - 1
+            }
+        } else {
+            dce <- deparse(ce, width.cutoff=0.75*getOption("width"))
+            leading <- 1
+        }
         if(object$debug)
             cat("\nRnw> ", paste(dce, collapse="\n+  "),"\n")
-        if(options$echo){
+        if(options$echo && length(dce)){
             if(!openSinput){
                 if(!openSchunk){
                     cat("\\begin{Schunk}\n",
                         file=chunkout, append=TRUE)
+                    linesout[thisline + 1] <- srcline
+                    thisline <- thisline + 1
                     openSchunk <- TRUE
                 }
                 cat("\\begin{Sinput}",
                     file=chunkout, append=TRUE)
                 openSinput <- TRUE
             }
-            cat("\n", getOption("prompt"),
-                paste(dce,
-                      collapse=paste("\n", getOption("continue"), sep="")),
+            cat("\n", paste(getOption("prompt"), dce[1:leading], sep="", collapse="\n"),
                 file=chunkout, append=TRUE, sep="")
+            if (length(dce) > leading)
+                cat("\n", paste(getOption("continue"), dce[-(1:leading)], sep="", collapse="\n"),
+                    file=chunkout, append=TRUE, sep="")
+            linesout[thisline + 1:length(dce)] <- srcline
+            thisline <- thisline + length(dce)                   	
         }
 
         ## tmpcon <- textConnection("output", "w")
@@ -322,7 +361,11 @@ cacheSweaveRuncode <- function(object, chunk, options)
         tmpcon <- file()
         sink(file=tmpcon)
         err <- NULL
+
+        ## [RDP] change this line to use my EvalWithOpt function
         if(options$eval) err <- cacheSweaveEvalWithOpt(ce, options, chunkDigest)
+        ## [RDP] end change
+        
         cat("\n") # make sure final line is complete
         sink()
         output <- readLines(tmpcon)
@@ -339,16 +382,22 @@ cacheSweaveRuncode <- function(object, chunk, options)
 
             if(openSinput){
                 cat("\n\\end{Sinput}\n", file=chunkout, append=TRUE)
+                linesout[thisline + 1:2] <- srcline
+                thisline <- thisline + 2
                 openSinput <- FALSE
             }
             if(options$results=="verbatim"){
                 if(!openSchunk){
                     cat("\\begin{Schunk}\n",
                         file=chunkout, append=TRUE)
+                    linesout[thisline + 1] <- srcline
+                    thisline <- thisline + 1
                     openSchunk <- TRUE
                 }
                 cat("\\begin{Soutput}\n",
                     file=chunkout, append=TRUE)
+                linesout[thisline + 1] <- srcline
+                thisline <- thisline + 1
             }
 
             output <- paste(output,collapse="\n")
@@ -359,28 +408,43 @@ cacheSweaveRuncode <- function(object, chunk, options)
                     output <- sub("\n[[:space:]]*\n", "\n", output)
             }
             cat(output, file=chunkout, append=TRUE)
+            count <- sum(strsplit(output, NULL)[[1]] == "\n")
+            if (count > 0) {
+                linesout[thisline + 1:count] <- srcline
+                thisline <- thisline + count
+            }
+
             remove(output)
 
             if(options$results=="verbatim"){
                 cat("\n\\end{Soutput}\n", file=chunkout, append=TRUE)
+                linesout[thisline + 1:2] <- srcline
+                thisline <- thisline + 2
             }
         }
     }
 
     if(openSinput){
         cat("\n\\end{Sinput}\n", file=chunkout, append=TRUE)
+        linesout[thisline + 1:2] <- srcline
+        thisline <- thisline + 2
     }
 
     if(openSchunk){
         cat("\\end{Schunk}\n", file=chunkout, append=TRUE)
+        linesout[thisline + 1] <- srcline
+        thisline <- thisline + 1
     }
 
     if(is.null(options$label) & options$split)
         close(chunkout)
 
-    if(options$split & options$include)
+    if(options$split & options$include){
         cat("\\input{", chunkprefix, "}\n", sep="",
             file=object$output, append=TRUE)
+        linesout[thisline + 1] <- srcline
+        thisline <- thisline + 1
+    }
 
     if(options$fig && options$eval){
         if(options$eps){
@@ -388,7 +452,7 @@ cacheSweaveRuncode <- function(object, chunk, options)
                                   width=options$width, height=options$height,
                                   paper="special", horizontal=FALSE)
 
-            err <- try({SweaveHooks(options, run=TRUE);
+            err <- try({SweaveHooks(options, run=TRUE)
                         eval(chunkexps, envir=.GlobalEnv)})
             grDevices::dev.off()
             if(inherits(err, "try-error")) stop(err)
@@ -399,18 +463,21 @@ cacheSweaveRuncode <- function(object, chunk, options)
                            version=options$pdf.version,
                            encoding=options$pdf.encoding)
 
-            err <- try({SweaveHooks(options, run=TRUE);
+            err <- try({SweaveHooks(options, run=TRUE)
                         eval(chunkexps, envir=.GlobalEnv)})
             grDevices::dev.off()
             if(inherits(err, "try-error")) stop(err)
         }
-        if(options$include)
+        if(options$include) {
             cat("\\includegraphics{", chunkprefix, "}\n", sep="",
                 file=object$output, append=TRUE)
+            linesout[thisline + 1] <- srcline
+            thisline <- thisline + 1    
+        }
     }
+    object$linesout <- c(object$linesout, linesout)
     return(object)
 }
-
 
 
 
