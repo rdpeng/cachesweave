@@ -18,6 +18,9 @@ getCacheDir()
   \code{setCacheDir} will create the cache directory if it does not
   already exist.  When the package \code{cacheSweave} is loaded, the
   cache directory is initially set to the current directory (".").
+  This function should generally be called in the very first code chunk
+  of the Sweave document and caching should \emph{not} be turned on for
+  that code chunk.
 }
 \value{
   \code{getCacheDir} returns the current cache directory.
