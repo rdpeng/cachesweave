@@ -119,59 +119,57 @@ cacheSweaveEvalWithOpt <- function (expr, options, chunkDigest){
         ## 'expr' is a single expression, so something like 'a <- 1'
         res <- NULL
 
-        if(options$eval){
-                if(options$cache) {
-                        cachedir <- getCacheDir()
+        if(!options$eval) 
+                return(res)
+        if(options$cache) {
+                cachedir <- getCacheDir()
+                
+                ## Create database name from chunk label and chunk MD5
+                ## digest
+                dbName <- makeChunkDatabaseName(cachedir, options,
+                                                chunkDigest)
+                exprDigest <- mangleDigest(digest(expr))
+                
+                ## Create 'stashR' database
+                db <- new("localDB", dir = dbName,
+                          name = basename(dbName))
 
-                        ## Create database name from chunk label and
-                        ## chunk MD5 digest
-                        dbName <- makeChunkDatabaseName(cachedir, options,
-                                                        chunkDigest)
-                        exprDigest <- mangleDigest(digest(expr))
+                ## Check to see if the current expression has been
+                ## evaluated already (hence is cached).  If the
+                ## expression is not cached, then evaluate the
+                ## expression and dump the resulting objects to the
+                ## database.  Otherwise, just read teh vector of keys
+                ## from the database
 
-                        ## Create 'stashR' database
-                        db <- new("localDB", dir = dbName,
-                                  name = basename(dbName))
-
-                        ## Check to see if the current expression has
-                        ## been evaluated already (hence is cached).
-                        ## If the expression is not cached, then
-                        ## evaluate the expression and dump the
-                        ## resulting objects to the database.
-                        ## Otherwise, just read teh vector of keys
-                        ## from the database
-
-                        if(!dbExists(db, exprDigest)) {
-                                keys <- try({
-                                        evalAndDumpToDB(db, expr, exprDigest)
-                                }, silent = TRUE)
-                        }
-                        else {
-                                ## Retrieve character vector of keys
-                                ## from the database                                
-                                keys <- dbFetch(db, exprDigest)
-                        }
-
-                        ## If there was an error trying to evaluate
-                        ## the expression, then just return the
-                        ## error/condition object and let the Sweave
-                        ## driver deal with it.
-                        if(inherits(keys, "try-error"))
-                                return(keys)
-
-                        dbLazyLoad(db, globalenv(), keys)
+                if(!dbExists(db, exprDigest)) {
+                        keys <- try({
+                                evalAndDumpToDB(db, expr, exprDigest)
+                        }, silent = TRUE)
                 }
                 else {
-                        ## If caching is turned off, just evaluate the expression
-                        ## in the global environment            
-                        res <- try(.Internal(eval.with.vis(expr, .GlobalEnv,
-                                                           baseenv())),
-                                   silent=TRUE)
-                        if(inherits(res, "try-error"))
-                                return(res)
-                        if(options$print | (options$term & res$visible))
-                                print(res$value)
+                        ## Retrieve character vector of keys from the
+                        ## database
+                        keys <- dbFetch(db, exprDigest)
                 }
+
+                ## If there was an error trying to evaluate the
+                ## expression, then just return the error/condition
+                ## object and let the Sweave driver deal with it.
+                if(inherits(keys, "try-error"))
+                        return(keys)
+
+                dbLazyLoad(db, globalenv(), keys)
+        }
+        else {
+                ## If caching is turned off, just evaluate the expression
+                ## in the global environment            
+                res <- try(.Internal(eval.with.vis(expr, .GlobalEnv,
+                                                   baseenv())),
+                           silent=TRUE)
+                if(inherits(res, "try-error"))
+                        return(res)
+                if(options$print | (options$term & res$visible))
+                        print(res$value)
         }
         res
 }
