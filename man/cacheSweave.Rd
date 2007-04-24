@@ -1,5 +1,7 @@
 \name{cacheSweave}
 \alias{cacheSweaveDriver}
+\alias{cacheSweave}
+\alias{cacheSweave-package}
 
 \title{Cache Sweave Computations}
 \description{
