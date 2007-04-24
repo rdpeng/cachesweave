@@ -18,12 +18,12 @@
 #####################################################################
 
 setCacheDir <- function(path) {
-    assign("cacheDir", path, .cacheEnv)
-    dir.create(path, showWarnings = FALSE)
+        assign("cacheDir", path, .cacheEnv)
+        dir.create(path, showWarnings = FALSE)
 }
 
 getCacheDir <- function() {
-    get("cacheDir", .cacheEnv, inherits = FALSE)
+        get("cacheDir", .cacheEnv, inherits = FALSE)
 }
 
 ######################################################################
@@ -34,13 +34,13 @@ getCacheDir <- function() {
 ## previous chunks.
 
 cacheSweaveDriver <- function() {
-    list(
-         setup = cacheSweaveSetup,
-         runcode = cacheSweaveRuncode,
-         writedoc = utils::RweaveLatexWritedoc,
-         finish = utils::RweaveLatexFinish,
-         checkopts = utils::RweaveLatexOptions
-         )
+        list(
+             setup = cacheSweaveSetup,
+             runcode = cacheSweaveRuncode,
+             writedoc = utils::RweaveLatexWritedoc,
+             finish = utils::RweaveLatexFinish,
+             checkopts = utils::RweaveLatexOptions
+             )
 }
 
 
@@ -48,58 +48,60 @@ cacheSweaveDriver <- function() {
 ## Take a 'filehash' database and insert a bunch of key/value pairs
 
 dumpToDB <- function(db, list = character(0), envir = parent.frame()) {
-    if(!is(db, "filehash"))
-        stop("'db' should be a 'filehash' database")
-    for(i in seq(along = list))
-        dbInsert(db, list[i], get(list[i], envir, inherits = FALSE))
-    invisible(db)
+        if(!is(db, "filehash"))
+                stop("'db' should be a 'filehash' database")
+        for(i in seq(along = list))
+                dbInsert(db, list[i], get(list[i], envir, inherits = FALSE))
+        invisible(db)
 }
 
 copy2env <- function(keys, fromEnv, toEnv) {
-    for(key in keys) {
-        assign(key, get(key, fromEnv, inherits = FALSE), toEnv)
-    }
+        for(key in keys) {
+                assign(key, get(key, fromEnv, inherits = FALSE), toEnv)
+        }
 }
 
 ## Take an expression, evaluate it in a local environment and dump the
 ## results to a database.  Associate the names of the dumped objects
-## with a digest of the expression.
+## with a digest of the expression.  Return a character vector of keys
+## that were dumped
 
 evalAndDumpToDB <- function(db, expr, exprDigest) {
-    env <- new.env(parent = globalenv())
-    keys.global0 <- ls(globalenv())
+        env <- new.env(parent = globalenv())
+        keys.global0 <- ls(globalenv())
 
-    ## Evaluate the expression
-    eval(expr, env)
+        ## Evaluate the expression
+        eval(expr, env)
 
-    ## If 'source()' was used, there may be new symbols in the global
-    ## environment, unless 'source(local = TRUE)' was used
-    keys.global1 <- ls(globalenv())  ## doesn't capture names beginning with '.'
-    new.global <- setdiff(keys.global1, keys.global0)
+        ## If 'source()' was used, there may be new symbols in the global
+        ## environment, unless 'source(local = TRUE)' was used
+        keys.global1 <- ls(globalenv())  ## doesn't capture names beginning with '.'
+        new.global <- setdiff(keys.global1, keys.global0)
 
-    copy2env(new.global, globalenv(), env)
-    
-    ## Get newly assigned object names
-    keys <- ls(env, all.names = TRUE)
+        copy2env(new.global, globalenv(), env)
+        
+        ## Get newly assigned object names
+        keys <- ls(env, all.names = TRUE)
 
-    ## Associate the newly created keys with the digest of
-    ## the expression
-    dbInsert(db, exprDigest, keys)
-    
-    ## Dump the values of the keys to the database
-    dumpToDB(db, list = keys, envir = env)
+        ## Associate the newly created keys with the digest of
+        ## the expression
+        dbInsert(db, exprDigest, keys)
+        
+        ## Dump the values of the keys to the database
+        dumpToDB(db, list = keys, envir = env)
 
-    keys
+        keys
 }
 
 makeChunkDatabaseName <- function(cachedir, options, chunkDigest) {
-    file.path(cachedir, paste(options$label, chunkDigest, sep = "_"))
+        file.path(cachedir, paste(options$label, chunkDigest, sep = "_"))
 }
 
 mangleDigest <- function(x) {
-    paste(".__", x, "__", sep = "")
+        paste(".__", x, "__", sep = "")
 }
 
+################################################################################
 ## The major modification is here: Rather than evaluate expressions
 ## and leave them in the global environment, we evaluate them in a
 ## local environment (that has globalenv() as the parent) and then
@@ -111,68 +113,67 @@ mangleDigest <- function(x) {
 ## evaluating the expression.  That way, for a given cached
 ## expression, we know which keys to lazy-load from the cache when
 ## evaluation is skipped.
+################################################################################
 
 cacheSweaveEvalWithOpt <- function (expr, options, chunkDigest){
-    ## 'expr' is a single expression, so something like 'a <- 1'
-    res <- NULL
+        ## 'expr' is a single expression, so something like 'a <- 1'
+        res <- NULL
 
-    if(options$eval){
-        if(options$cache) {
-            cachedir <- getCacheDir()
+        if(options$eval){
+                if(options$cache) {
+                        cachedir <- getCacheDir()
 
-            ## Create database name from chunk label and chunk MD5
-            ## digest
-            dbName <- makeChunkDatabaseName(cachedir, options, chunkDigest)
+                        ## Create database name from chunk label and
+                        ## chunk MD5 digest
+                        dbName <- makeChunkDatabaseName(cachedir, options,
+                                                        chunkDigest)
+                        exprDigest <- mangleDigest(digest(expr))
 
-            ## Take an MD5 digest of the expression; mangle the name
-            ## of the digest so it doesn't show up with 'ls()'
-            exprDigest <- mangleDigest(digest(expr))
+                        ## Create 'stashR' database
+                        db <- new("localDB", dir = dbName,
+                                  name = basename(dbName))
 
-            ## Use 'localDB' database from 'stashR' package; all
-            ## necessary directories are created by the 'initialize()'
-            ## method.  If directories already exist, nothing is done.
-            db <- new("localDB", dir = dbName, name = basename(dbName))
+                        ## Check to see if the current expression has
+                        ## been evaluated already (hence is cached).
+                        ## If the expression is not cached, then
+                        ## evaluate the expression and dump the
+                        ## resulting objects to the database.
+                        ## Otherwise, just read teh vector of keys
+                        ## from the database
 
-            ## Now that we have a database, check to see if the
-            ## current expression has been evaluated already (and
-            ## therefore is cached)            
-            keys <- if(!dbExists(db, exprDigest)) {
-                ## Evaluate the expression for the first time and dump
-                ## the resulting objects to the database; return a
-                ## character vector containing the names of the
-                ## objects created on evaluation
-                try({
-                    evalAndDumpToDB(db, expr, exprDigest)
-                }, silent = TRUE)
-            }
-            else {
-                ## Retrieve character vector of keys (object names)
-                ## from the database
-                dbFetch(db, exprDigest)
-            }
-            ## If there was an error trying to evaluate the
-            ## expression, then just return the error/condition object
-            ## and let the Sweave driver deal with it.            
-            if(inherits(keys, "try-error"))
-                return(keys)
+                        if(!dbExists(db, exprDigest)) {
+                                keys <- try({
+                                        evalAndDumpToDB(db, expr, exprDigest)
+                                }, silent = TRUE)
+                        }
+                        else {
+                                ## Retrieve character vector of keys
+                                ## from the database                                
+                                keys <- dbFetch(db, exprDigest)
+                        }
 
-            ## Given the vector of keys, lazy-load them into the
-            ## global environment and replace the actual objects with
-            ## promises
-            dbLazyLoad(db, globalenv(), keys)
+                        ## If there was an error trying to evaluate
+                        ## the expression, then just return the
+                        ## error/condition object and let the Sweave
+                        ## driver deal with it.
+                        if(inherits(keys, "try-error"))
+                                return(keys)
+
+                        dbLazyLoad(db, globalenv(), keys)
+                }
+                else {
+                        ## If caching is turned off, just evaluate the expression
+                        ## in the global environment            
+                        res <- try(.Internal(eval.with.vis(expr, .GlobalEnv,
+                                                           baseenv())),
+                                   silent=TRUE)
+                        if(inherits(res, "try-error"))
+                                return(res)
+                        if(options$print | (options$term & res$visible))
+                                print(res$value)
+                }
         }
-        else {
-            ## If caching is turned off, just evaluate the expression
-            ## in the global environment            
-            res <- try(.Internal(eval.with.vis(expr, .GlobalEnv, baseenv())),
-                       silent=TRUE)
-            if(inherits(res, "try-error"))
-                return(res)
-            if(options$print | (options$term & res$visible))
-                print(res$value)
-        }
-    }
-    res
+        res
 }
 
 ## Need to add the 'cache', 'filename' option to the list
@@ -180,28 +181,29 @@ cacheSweaveSetup <- function(file, syntax,
                              output=NULL, quiet=FALSE, debug=FALSE, echo=TRUE,
                              eval=TRUE, split=FALSE, stylepath=TRUE, pdf=TRUE,
                              eps=TRUE, cache = FALSE) {
-    
-    out <- utils::RweaveLatexSetup(file, syntax, output=NULL, quiet=FALSE,
-                                    debug=FALSE, echo=TRUE, eval=TRUE, split=FALSE,
-                                    stylepath=TRUE, pdf=TRUE, eps=TRUE)
+        
+        out <- utils::RweaveLatexSetup(file, syntax, output=NULL, quiet=FALSE,
+                                       debug=FALSE, echo=TRUE, eval=TRUE,
+                                       split=FALSE, stylepath=TRUE, pdf=TRUE,
+                                       eps=TRUE)
 
 ######################################################################
-    ## Additions here [RDP]
-    ## Add the (non-standard) options for code chunks with caching
-    out$options[["cache"]] <- cache
+        ## Additions here [RDP]
+        ## Add the (non-standard) options for code chunks with caching
+        out$options[["cache"]] <- cache
 
-    ## We assume that each .Rnw file gets its own map file
-    out[["mapFile"]] <- makeMapFileName(file)
-    file.create(out[["mapFile"]])  ## Overwrite an existing file
-    
-    ## End additions [RDP]
+        ## We assume that each .Rnw file gets its own map file
+        out[["mapFile"]] <- makeMapFileName(file)
+        file.create(out[["mapFile"]])  ## Overwrite an existing file
+        
+        ## End additions [RDP]
 ######################################################################
-    out
+        out
 }
 
 
 makeMapFileName <- function(Rnwfile) {
-    sub("\\.Rnw$", "\\.map", Rnwfile)
+        sub("\\.Rnw$", "\\.map", Rnwfile)
 }
 
 ## This function is essentially unchanged from the original Sweave
@@ -211,272 +213,272 @@ makeMapFileName <- function(Rnwfile) {
 ## chunk level.
 
 cacheSweaveRuncode <- function(object, chunk, options) {
-    if(!(options$engine %in% c("R", "S"))){
-        return(object)
-    }
-
-    if(!object$quiet){
-        cat(formatC(options$chunknr, width=2), ":")
-        if(options$echo) cat(" echo")
-        if(options$keep.source) cat(" keep.source")
-        if(options$eval){
-            if(options$print) cat(" print")
-            if(options$term) cat(" term")
-            cat("", options$results)
-            if(options$fig){
-                if(options$eps) cat(" eps")
-                if(options$pdf) cat(" pdf")
-            }
+        if(!(options$engine %in% c("R", "S"))){
+                return(object)
         }
-        if(!is.null(options$label))
-            cat(" (label=", options$label, ")", sep="")
-        cat("\n")
-    }
 
-    chunkprefix <- RweaveChunkPrefix(options)
-
-    if(options$split){
-        ## [x][[1]] avoids partial matching of x
-        chunkout <- object$chunkout[chunkprefix][[1]]
-        if(is.null(chunkout)){
-            chunkout <- file(paste(chunkprefix, "tex", sep="."), "w")
-            if(!is.null(options$label))
-                object$chunkout[[chunkprefix]] <- chunkout
-        }
-    }
-    else
-        chunkout <- object$output
-
-    saveopts <- options(keep.source=options$keep.source)
-    on.exit(options(saveopts))
-
-    SweaveHooks(options, run=TRUE)
-
-    ## parse entire chunk block
-    chunkexps <- try(parse(text=chunk), silent=TRUE)
-    RweaveTryStop(chunkexps, options)
-
-######################################################################
-    ## Adding my own stuff here [RDP]
-    
-    chunkDigest <- digest(chunkexps)
-    mapFile <- object[["mapFile"]]
-
-    ## If there's a data map file then write the chunk name and the
-    ## directory of the chunk database to the map file (in DCF format)
-    dbName <- if(isTRUE(options$cache)) 
-        makeChunkDatabaseName(getCacheDir(), options, chunkDigest)
-    else
-        ""
-    ## Capture figure filenames; default to PDF, otherwise use EPS.
-    ## Filenames are <chunkprefix>.<extenstion>, which could change in
-    ## the future depending on Sweave implementation details
-    figname <- ""
-    if(options$fig && options$eval) {
-        figname <- if(options$pdf)
-            paste(chunkprefix, "pdf", sep = ".")
-        else if(options$eps)
-            paste(chunkprefix, "eps", sep = ".")
-        else
-            ""
-    }
-    ## Write out map file entry
-    mapEntry <- data.frame(chunk = options$label,
-                           chunkprefix = chunkprefix,
-                           fig = figname,
-                           cacheDB = dbName,
-                           time = Sys.time())
-    write.dcf(mapEntry, file = mapFile, append = TRUE, width = 2000)
-    
-    ## End adding my own stuff [RDP]
-######################################################################
-    
-    openSinput <- FALSE
-    openSchunk <- FALSE
-
-    if(length(chunkexps)==0)
-        return(object)
-
-    srclines <- attr(chunk, "srclines")
-    linesout <- integer(0)
-    srcline <- srclines[1]
-    
-    srcrefs <- attr(chunkexps, "srcref")
-    if (options$expand)
-        lastshown <- 0
-    else
-        lastshown <- srcline - 1
-    thisline <- 0
-    for(nce in 1:length(chunkexps))
-    {
-        ce <- chunkexps[[nce]]
-        if (nce <= length(srcrefs) && !is.null(srcref <- srcrefs[[nce]])) {
-            if (options$expand) {
-                srcfile <- attr(srcref, "srcfile")
-                showfrom <- srcref[1]
-                showto <- srcref[3]
-            } else {
-                srcfile <- object$srcfile
-                showfrom <- srclines[srcref[1]]
-                showto <- srclines[srcref[3]]
-            }
-            dce <- getSrcLines(srcfile, lastshown+1, showto)
-            leading <- showfrom-lastshown
-            lastshown <- showto
-            srcline <- srclines[srcref[3]]
-            while (length(dce) && length(grep("^[ \\t]*$", dce[1]))) {
-                dce <- dce[-1]
-                leading <- leading - 1
-            }
-        } else {
-            dce <- deparse(ce, width.cutoff=0.75*getOption("width"))
-            leading <- 1
-        }
-        if(object$debug)
-            cat("\nRnw> ", paste(dce, collapse="\n+  "),"\n")
-        if(options$echo && length(dce)){
-            if(!openSinput){
-                if(!openSchunk){
-                    cat("\\begin{Schunk}\n",
-                        file=chunkout, append=TRUE)
-                    linesout[thisline + 1] <- srcline
-                    thisline <- thisline + 1
-                    openSchunk <- TRUE
+        if(!object$quiet){
+                cat(formatC(options$chunknr, width=2), ":")
+                if(options$echo) cat(" echo")
+                if(options$keep.source) cat(" keep.source")
+                if(options$eval){
+                        if(options$print) cat(" print")
+                        if(options$term) cat(" term")
+                        cat("", options$results)
+                        if(options$fig){
+                                if(options$eps) cat(" eps")
+                                if(options$pdf) cat(" pdf")
+                        }
                 }
-                cat("\\begin{Sinput}",
-                    file=chunkout, append=TRUE)
-                openSinput <- TRUE
-            }
-            cat("\n", paste(getOption("prompt"), dce[1:leading], sep="", collapse="\n"),
-                file=chunkout, append=TRUE, sep="")
-            if (length(dce) > leading)
-                cat("\n", paste(getOption("continue"), dce[-(1:leading)], sep="", collapse="\n"),
-                    file=chunkout, append=TRUE, sep="")
-            linesout[thisline + 1:length(dce)] <- srcline
-            thisline <- thisline + length(dce)                   	
+                if(!is.null(options$label))
+                        cat(" (label=", options$label, ")", sep="")
+                cat("\n")
         }
 
-        ## tmpcon <- textConnection("output", "w")
-        ## avoid the limitations (and overhead) of output text connections
-        tmpcon <- file()
-        sink(file=tmpcon)
-        err <- NULL
+        chunkprefix <- RweaveChunkPrefix(options)
 
-        ## [RDP] change this line to use my EvalWithOpt function
-        if(options$eval) err <- cacheSweaveEvalWithOpt(ce, options, chunkDigest)
-        ## [RDP] end change
+        if(options$split){
+                ## [x][[1]] avoids partial matching of x
+                chunkout <- object$chunkout[chunkprefix][[1]]
+                if(is.null(chunkout)){
+                        chunkout <- file(paste(chunkprefix, "tex", sep="."), "w")
+                        if(!is.null(options$label))
+                                object$chunkout[[chunkprefix]] <- chunkout
+                }
+        }
+        else
+                chunkout <- object$output
+
+        saveopts <- options(keep.source=options$keep.source)
+        on.exit(options(saveopts))
+
+        SweaveHooks(options, run=TRUE)
+
+        ## parse entire chunk block
+        chunkexps <- try(parse(text=chunk), silent=TRUE)
+        RweaveTryStop(chunkexps, options)
+
+######################################################################
+        ## Adding my own stuff here [RDP]
         
-        cat("\n") # make sure final line is complete
-        sink()
-        output <- readLines(tmpcon)
-        close(tmpcon)
-        ## delete empty output
-        if(length(output)==1 & output[1]=="") output <- NULL
+        chunkDigest <- digest(chunkexps)
+        mapFile <- object[["mapFile"]]
 
-        RweaveTryStop(err, options)
+        ## If there's a data map file then write the chunk name and the
+        ## directory of the chunk database to the map file (in DCF format)
+        dbName <- if(isTRUE(options$cache)) 
+                makeChunkDatabaseName(getCacheDir(), options, chunkDigest)
+        else
+                ""
+        ## Capture figure filenames; default to PDF, otherwise use EPS.
+        ## Filenames are <chunkprefix>.<extenstion>, which could change in
+        ## the future depending on Sweave implementation details
+        figname <- ""
+        if(options$fig && options$eval) {
+                figname <- if(options$pdf)
+                        paste(chunkprefix, "pdf", sep = ".")
+                else if(options$eps)
+                        paste(chunkprefix, "eps", sep = ".")
+                else
+                        ""
+        }
+        ## Write out map file entry
+        mapEntry <- data.frame(chunk = options$label,
+                               chunkprefix = chunkprefix,
+                               fig = figname,
+                               cacheDB = dbName,
+                               time = Sys.time())
+        write.dcf(mapEntry, file = mapFile, append = TRUE, width = 2000)
+        
+        ## End adding my own stuff [RDP]
+######################################################################
+        
+        openSinput <- FALSE
+        openSchunk <- FALSE
 
-        if(object$debug)
-            cat(paste(output, collapse="\n"))
+        if(length(chunkexps)==0)
+                return(object)
 
-        if(length(output)>0 & (options$results != "hide")){
+        srclines <- attr(chunk, "srclines")
+        linesout <- integer(0)
+        srcline <- srclines[1]
+        
+        srcrefs <- attr(chunkexps, "srcref")
+        if (options$expand)
+                lastshown <- 0
+        else
+                lastshown <- srcline - 1
+        thisline <- 0
+        for(nce in 1:length(chunkexps))
+        {
+                ce <- chunkexps[[nce]]
+                if (nce <= length(srcrefs) && !is.null(srcref <- srcrefs[[nce]])) {
+                        if (options$expand) {
+                                srcfile <- attr(srcref, "srcfile")
+                                showfrom <- srcref[1]
+                                showto <- srcref[3]
+                        } else {
+                                srcfile <- object$srcfile
+                                showfrom <- srclines[srcref[1]]
+                                showto <- srclines[srcref[3]]
+                        }
+                        dce <- getSrcLines(srcfile, lastshown+1, showto)
+                        leading <- showfrom-lastshown
+                        lastshown <- showto
+                        srcline <- srclines[srcref[3]]
+                        while (length(dce) && length(grep("^[ \\t]*$", dce[1]))) {
+                                dce <- dce[-1]
+                                leading <- leading - 1
+                        }
+                } else {
+                        dce <- deparse(ce, width.cutoff=0.75*getOption("width"))
+                        leading <- 1
+                }
+                if(object$debug)
+                        cat("\nRnw> ", paste(dce, collapse="\n+  "),"\n")
+                if(options$echo && length(dce)){
+                        if(!openSinput){
+                                if(!openSchunk){
+                                        cat("\\begin{Schunk}\n",
+                                            file=chunkout, append=TRUE)
+                                        linesout[thisline + 1] <- srcline
+                                        thisline <- thisline + 1
+                                        openSchunk <- TRUE
+                                }
+                                cat("\\begin{Sinput}",
+                                    file=chunkout, append=TRUE)
+                                openSinput <- TRUE
+                        }
+                        cat("\n", paste(getOption("prompt"), dce[1:leading], sep="", collapse="\n"),
+                            file=chunkout, append=TRUE, sep="")
+                        if (length(dce) > leading)
+                                cat("\n", paste(getOption("continue"), dce[-(1:leading)], sep="", collapse="\n"),
+                                    file=chunkout, append=TRUE, sep="")
+                        linesout[thisline + 1:length(dce)] <- srcline
+                        thisline <- thisline + length(dce)                   	
+                }
 
-            if(openSinput){
+                ## tmpcon <- textConnection("output", "w")
+                ## avoid the limitations (and overhead) of output text connections
+                tmpcon <- file()
+                sink(file=tmpcon)
+                err <- NULL
+
+                ## [RDP] change this line to use my EvalWithOpt function
+                if(options$eval) err <- cacheSweaveEvalWithOpt(ce, options, chunkDigest)
+                ## [RDP] end change
+                
+                cat("\n") # make sure final line is complete
+                sink()
+                output <- readLines(tmpcon)
+                close(tmpcon)
+                ## delete empty output
+                if(length(output)==1 & output[1]=="") output <- NULL
+
+                RweaveTryStop(err, options)
+
+                if(object$debug)
+                        cat(paste(output, collapse="\n"))
+
+                if(length(output)>0 & (options$results != "hide")){
+
+                        if(openSinput){
+                                cat("\n\\end{Sinput}\n", file=chunkout, append=TRUE)
+                                linesout[thisline + 1:2] <- srcline
+                                thisline <- thisline + 2
+                                openSinput <- FALSE
+                        }
+                        if(options$results=="verbatim"){
+                                if(!openSchunk){
+                                        cat("\\begin{Schunk}\n",
+                                            file=chunkout, append=TRUE)
+                                        linesout[thisline + 1] <- srcline
+                                        thisline <- thisline + 1
+                                        openSchunk <- TRUE
+                                }
+                                cat("\\begin{Soutput}\n",
+                                    file=chunkout, append=TRUE)
+                                linesout[thisline + 1] <- srcline
+                                thisline <- thisline + 1
+                        }
+
+                        output <- paste(output,collapse="\n")
+                        if(options$strip.white %in% c("all", "true")){
+                                output <- sub("^[[:space:]]*\n", "", output)
+                                output <- sub("\n[[:space:]]*$", "", output)
+                                if(options$strip.white=="all")
+                                        output <- sub("\n[[:space:]]*\n", "\n", output)
+                        }
+                        cat(output, file=chunkout, append=TRUE)
+                        count <- sum(strsplit(output, NULL)[[1]] == "\n")
+                        if (count > 0) {
+                                linesout[thisline + 1:count] <- srcline
+                                thisline <- thisline + count
+                        }
+
+                        remove(output)
+
+                        if(options$results=="verbatim"){
+                                cat("\n\\end{Soutput}\n", file=chunkout, append=TRUE)
+                                linesout[thisline + 1:2] <- srcline
+                                thisline <- thisline + 2
+                        }
+                }
+        }
+
+        if(openSinput){
                 cat("\n\\end{Sinput}\n", file=chunkout, append=TRUE)
                 linesout[thisline + 1:2] <- srcline
                 thisline <- thisline + 2
-                openSinput <- FALSE
-            }
-            if(options$results=="verbatim"){
-                if(!openSchunk){
-                    cat("\\begin{Schunk}\n",
-                        file=chunkout, append=TRUE)
-                    linesout[thisline + 1] <- srcline
-                    thisline <- thisline + 1
-                    openSchunk <- TRUE
-                }
-                cat("\\begin{Soutput}\n",
-                    file=chunkout, append=TRUE)
+        }
+
+        if(openSchunk){
+                cat("\\end{Schunk}\n", file=chunkout, append=TRUE)
                 linesout[thisline + 1] <- srcline
                 thisline <- thisline + 1
-            }
-
-            output <- paste(output,collapse="\n")
-            if(options$strip.white %in% c("all", "true")){
-                output <- sub("^[[:space:]]*\n", "", output)
-                output <- sub("\n[[:space:]]*$", "", output)
-                if(options$strip.white=="all")
-                    output <- sub("\n[[:space:]]*\n", "\n", output)
-            }
-            cat(output, file=chunkout, append=TRUE)
-            count <- sum(strsplit(output, NULL)[[1]] == "\n")
-            if (count > 0) {
-                linesout[thisline + 1:count] <- srcline
-                thisline <- thisline + count
-            }
-
-            remove(output)
-
-            if(options$results=="verbatim"){
-                cat("\n\\end{Soutput}\n", file=chunkout, append=TRUE)
-                linesout[thisline + 1:2] <- srcline
-                thisline <- thisline + 2
-            }
         }
-    }
 
-    if(openSinput){
-        cat("\n\\end{Sinput}\n", file=chunkout, append=TRUE)
-        linesout[thisline + 1:2] <- srcline
-        thisline <- thisline + 2
-    }
+        if(is.null(options$label) & options$split)
+                close(chunkout)
 
-    if(openSchunk){
-        cat("\\end{Schunk}\n", file=chunkout, append=TRUE)
-        linesout[thisline + 1] <- srcline
-        thisline <- thisline + 1
-    }
-
-    if(is.null(options$label) & options$split)
-        close(chunkout)
-
-    if(options$split & options$include){
-        cat("\\input{", chunkprefix, "}\n", sep="",
-            file=object$output, append=TRUE)
-        linesout[thisline + 1] <- srcline
-        thisline <- thisline + 1
-    }
-
-    if(options$fig && options$eval){
-        if(options$eps){
-            grDevices::postscript(file=paste(chunkprefix, "eps", sep="."),
-                                  width=options$width, height=options$height,
-                                  paper="special", horizontal=FALSE)
-
-            err <- try({SweaveHooks(options, run=TRUE)
-                        eval(chunkexps, envir=.GlobalEnv)})
-            grDevices::dev.off()
-            if(inherits(err, "try-error")) stop(err)
+        if(options$split & options$include){
+                cat("\\input{", chunkprefix, "}\n", sep="",
+                    file=object$output, append=TRUE)
+                linesout[thisline + 1] <- srcline
+                thisline <- thisline + 1
         }
-        if(options$pdf){
-            grDevices::pdf(file=paste(chunkprefix, "pdf", sep="."),
-                           width=options$width, height=options$height,
-                           version=options$pdf.version,
-                           encoding=options$pdf.encoding)
 
-            err <- try({SweaveHooks(options, run=TRUE)
-                        eval(chunkexps, envir=.GlobalEnv)})
-            grDevices::dev.off()
-            if(inherits(err, "try-error")) stop(err)
+        if(options$fig && options$eval){
+                if(options$eps){
+                        grDevices::postscript(file=paste(chunkprefix, "eps", sep="."),
+                                              width=options$width, height=options$height,
+                                              paper="special", horizontal=FALSE)
+
+                        err <- try({SweaveHooks(options, run=TRUE)
+                                    eval(chunkexps, envir=.GlobalEnv)})
+                        grDevices::dev.off()
+                        if(inherits(err, "try-error")) stop(err)
+                }
+                if(options$pdf){
+                        grDevices::pdf(file=paste(chunkprefix, "pdf", sep="."),
+                                       width=options$width, height=options$height,
+                                       version=options$pdf.version,
+                                       encoding=options$pdf.encoding)
+
+                        err <- try({SweaveHooks(options, run=TRUE)
+                                    eval(chunkexps, envir=.GlobalEnv)})
+                        grDevices::dev.off()
+                        if(inherits(err, "try-error")) stop(err)
+                }
+                if(options$include) {
+                        cat("\\includegraphics{", chunkprefix, "}\n", sep="",
+                            file=object$output, append=TRUE)
+                        linesout[thisline + 1] <- srcline
+                        thisline <- thisline + 1    
+                }
         }
-        if(options$include) {
-            cat("\\includegraphics{", chunkprefix, "}\n", sep="",
-                file=object$output, append=TRUE)
-            linesout[thisline + 1] <- srcline
-            thisline <- thisline + 1    
-        }
-    }
-    object$linesout <- c(object$linesout, linesout)
-    return(object)
+        object$linesout <- c(object$linesout, linesout)
+        return(object)
 }
 
 
@@ -509,47 +511,4 @@ cacheSweaveRuncode <- function(object, chunk, options) {
 
 
 
-
-######################################################################
-## Old version that uses R workspaces instead of filehash databases
-
-## cacheSweaveOld <- function(name, expr, envir = parent.frame()) {
-##     if(!file.exists(name)) {
-##         env <- new.env()
-##         local(eval(expr), env)
-##         save(list = ls(env, all.names = TRUE), file = name, compress = TRUE,
-##              envir = env)
-##         for(n in ls(env, all.names = TRUE))
-##             assign(n, get(n, env), envir)
-##     }
-##     else
-##         load(name, envir)
-## }
-
-## NOTE: This function uses 'DB1' format without asking.  
-
-## cacheSweave <- function(expr, prefix = NULL, envir = parent.frame(), keys = NULL) {
-##     expr <- substitute(expr)
-##     cachedir <- getCacheDir()
-## 
-##     if(is.null(cachedir))
-##         stop("need to set cache directory with 'setCacheDir'")
-##     dbName <- file.path(cachedir, paste(prefix, digest(expr), sep = "_"))
-## 
-##     if(!file.exists(dbName)) {
-##         env <- new.env(parent = globalenv())
-##         eval(expr, env)
-## 
-##         ## Create/initialize caching database
-##         dbCreate(dbName)
-##         db <- dbInit(dbName)
-## 
-##         ## Only save objects specified by 'keys'
-##         if(is.null(keys))
-##             keys <- ls(env, all.names = TRUE)
-##         dumpToDB(db, list = keys, envir = env)
-##     }
-##     db <- dbInit(dbName)
-##     dbLazyLoad(db, envir, keys)
-## }
 
