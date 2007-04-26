@@ -212,7 +212,7 @@ makeMapFileName <- function(Rnwfile) {
 ## version, except I compute the digest of the entire chunk, write out
 ## information to the map file, and use 'cacheSweaveEvalWithOpt'
 ## instead.  Note that everything in this function operates at the
-## chunk level.
+## chunk level.  The code has been copied from R 2.5.0.
 
 cacheSweaveRuncode <- function(object, chunk, options) {
         if(!(options$engine %in% c("R", "S"))){
