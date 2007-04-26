@@ -1,16 +1,16 @@
 ######################################################################
 ## Copyright (C) 2006, Roger D. Peng <rpeng@jhsph.edu>
-## 
+##
 ## This program is free software; you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by
 ## the Free Software Foundation; either version 2 of the License, or
 ## (at your option) any later version.
-## 
+##
 ## This program is distributed in the hope that it will be useful,
 ## but WITHOUT ANY WARRANTY; without even the implied warranty of
 ## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ## GNU General Public License for more details.
-## 
+##
 ## You should have received a copy of the GNU General Public License
 ## along with this program; if not, write to the Free Software
 ## Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
@@ -79,14 +79,14 @@ evalAndDumpToDB <- function(db, expr, exprDigest) {
         new.global <- setdiff(keys.global1, keys.global0)
 
         copy2env(new.global, globalenv(), env)
-        
+
         ## Get newly assigned object names
         keys <- ls(env, all.names = TRUE)
 
         ## Associate the newly created keys with the digest of
         ## the expression
         dbInsert(db, exprDigest, keys)
-        
+
         ## Dump the values of the keys to the database
         dumpToDB(db, list = keys, envir = env)
 
@@ -119,17 +119,17 @@ cacheSweaveEvalWithOpt <- function (expr, options, chunkDigest){
         ## 'expr' is a single expression, so something like 'a <- 1'
         res <- NULL
 
-        if(!options$eval) 
+        if(!options$eval)
                 return(res)
         if(options$cache) {
                 cachedir <- getCacheDir()
-                
+
                 ## Create database name from chunk label and chunk MD5
                 ## digest
                 dbName <- makeChunkDatabaseName(cachedir, options,
                                                 chunkDigest)
                 exprDigest <- mangleDigest(digest(expr))
-                
+
                 ## Create 'stashR' database
                 db <- new("localDB", dir = dbName,
                           name = basename(dbName))
@@ -162,7 +162,7 @@ cacheSweaveEvalWithOpt <- function (expr, options, chunkDigest){
         }
         else {
                 ## If caching is turned off, just evaluate the expression
-                ## in the global environment            
+                ## in the global environment
                 res <- try(.Internal(eval.with.vis(expr, .GlobalEnv,
                                                    baseenv())),
                            silent=TRUE)
@@ -179,7 +179,7 @@ cacheSweaveSetup <- function(file, syntax,
                              output=NULL, quiet=FALSE, debug=FALSE, echo=TRUE,
                              eval=TRUE, split=FALSE, stylepath=TRUE, pdf=TRUE,
                              eps=TRUE, cache = FALSE) {
-        
+
         out <- utils::RweaveLatexSetup(file, syntax, output=NULL, quiet=FALSE,
                                        debug=FALSE, echo=TRUE, eval=TRUE,
                                        split=FALSE, stylepath=TRUE, pdf=TRUE,
@@ -193,7 +193,7 @@ cacheSweaveSetup <- function(file, syntax,
         ## We assume that each .Rnw file gets its own map file
         out[["mapFile"]] <- makeMapFileName(file)
         file.create(out[["mapFile"]])  ## Overwrite an existing file
-        
+
         ## End additions [RDP]
 ######################################################################
         out
@@ -213,7 +213,7 @@ writeMetadata <- function(options, object, chunkexps, chunkprefix) {
 
         ## If there's a data map file then write the chunk name and the
         ## directory of the chunk database to the map file (in DCF format)
-        dbName <- if(isTRUE(options$cache)) 
+        dbName <- if(isTRUE(options$cache))
                 makeChunkDatabaseName(getCacheDir(), options, chunkDigest)
         else
                 ""
@@ -304,7 +304,7 @@ cacheSweaveRuncode <- function(object, chunk, options) {
         srclines <- attr(chunk, "srclines")
         linesout <- integer(0)
         srcline <- srclines[1]
-        
+
         srcrefs <- attr(chunkexps, "srcref")
         if (options$expand)
                 lastshown <- 0
@@ -357,7 +357,7 @@ cacheSweaveRuncode <- function(object, chunk, options) {
                                 cat("\n", paste(getOption("continue"), dce[-(1:leading)], sep="", collapse="\n"),
                                     file=chunkout, append=TRUE, sep="")
                         linesout[thisline + 1:length(dce)] <- srcline
-                        thisline <- thisline + length(dce)                   	
+                        thisline <- thisline + length(dce)
                 }
 
                 ## tmpcon <- textConnection("output", "w")
@@ -369,7 +369,7 @@ cacheSweaveRuncode <- function(object, chunk, options) {
                 ## [RDP] change this line to use my EvalWithOpt function
                 if(options$eval) err <- cacheSweaveEvalWithOpt(ce, options, chunkDigest)
                 ## [RDP] end change
-                
+
                 cat("\n") # make sure final line is complete
                 sink()
                 output <- readLines(tmpcon)
@@ -476,7 +476,7 @@ cacheSweaveRuncode <- function(object, chunk, options) {
                         cat("\\includegraphics{", chunkprefix, "}\n", sep="",
                             file=object$output, append=TRUE)
                         linesout[thisline + 1] <- srcline
-                        thisline <- thisline + 1    
+                        thisline <- thisline + 1
                 }
         }
         object$linesout <- c(object$linesout, linesout)
