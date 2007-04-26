@@ -201,7 +201,11 @@ cacheSweaveSetup <- function(file, syntax,
 
 
 makeMapFileName <- function(Rnwfile) {
-        sub("\\.Rnw$", "\\.map", Rnwfile)
+        mapfile <- sub("\\.Rnw$", "\\.map", Rnwfile)
+
+        if(identical(mapfile, Rnwfile))
+                mapfile <- paste(Rnwfile, "map", sep = ".")
+        mapfile
 }
 
 ## This function is essentially unchanged from the original Sweave
