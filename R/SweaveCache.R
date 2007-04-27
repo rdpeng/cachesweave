@@ -124,37 +124,28 @@ cacheSweaveEvalWithOpt <- function (expr, options, chunkDigest){
         if(options$cache) {
                 cachedir <- getCacheDir()
 
-                ## Create database name from chunk label and chunk MD5
+                ## Create database name from chunk label and MD5
                 ## digest
-                dbName <- makeChunkDatabaseName(cachedir, options,
-                                                chunkDigest)
+                dbName <- makeChunkDatabaseName(cachedir, options, chunkDigest)
                 exprDigest <- mangleDigest(digest(expr))
 
                 ## Create 'stashR' database
-                db <- new("localDB", dir = dbName,
-                          name = basename(dbName))
+                db <- new("localDB", dir = dbName, name = basename(dbName))
 
-                ## Check to see if the current expression has been
-                ## evaluated already (hence is cached).  If the
-                ## expression is not cached, then evaluate the
-                ## expression and dump the resulting objects to the
-                ## database.  Otherwise, just read teh vector of keys
-                ## from the database
+                ## If the current expression is not cached, then
+                ## evaluate the expression and dump the resulting
+                ## objects to the database.  Otherwise, just read the
+                ## vector of keys from the database
 
-                if(!dbExists(db, exprDigest)) {
-                        keys <- try({
+                keys <- if(!dbExists(db, exprDigest)) 
+                        try({
                                 evalAndDumpToDB(db, expr, exprDigest)
                         }, silent = TRUE)
-                }
-                else {
-                        ## Retrieve character vector of keys from the
-                        ## database
-                        keys <- dbFetch(db, exprDigest)
-                }
+                else 
+                        dbFetch(db, exprDigest)
 
-                ## If there was an error trying to evaluate the
-                ## expression, then just return the error/condition
-                ## object and let the Sweave driver deal with it.
+                ## If there was an error then just return the
+                ## condition object and let Sweave deal with it.
                 if(inherits(keys, "try-error"))
                         return(keys)
 
@@ -203,6 +194,7 @@ cacheSweaveSetup <- function(file, syntax,
 makeMapFileName <- function(Rnwfile) {
         mapfile <- sub("\\.Rnw$", "\\.map", Rnwfile)
 
+        ## Don't clobber
         if(identical(mapfile, Rnwfile))
                 mapfile <- paste(Rnwfile, "map", sep = ".")
         mapfile
