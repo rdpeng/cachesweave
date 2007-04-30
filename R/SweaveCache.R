@@ -61,6 +61,25 @@ copy2env <- function(keys, fromEnv, toEnv) {
         }
 }
 
+## Check for new symbols in 'e2' that are not in 'e1'; doesn't check
+## for modified symbols
+
+checkNewSymbols <- function(e1, e2) {
+        if(identical(e1, e2))
+                return(character(0))
+        specials <- c(".Random.seed")
+        sym1 <- ls(e1)
+        sym2 <- ls(e2)
+        newsym <- setdiff(sym2, sym1)
+
+        use <- sapply(specials, function(s) {
+                not.in1 <- !exists(s, e1, inherits=FALSE)
+                in2 <- exists(s, e2, inherits=FALSE)
+                not.in1 && in2
+        })
+        c(newsym, specials[use])
+}
+
 ## Take an expression, evaluate it in a local environment and dump the
 ## results to a database.  Associate the names of the dumped objects
 ## with a digest of the expression.  Return a character vector of keys
@@ -68,15 +87,17 @@ copy2env <- function(keys, fromEnv, toEnv) {
 
 evalAndDumpToDB <- function(db, expr, exprDigest) {
         env <- new.env(parent = globalenv())
-        keys.global0 <- ls(globalenv())
+        global1 <- globalenv()
 
         ## Evaluate the expression
         eval(expr, env)
 
-        ## If 'source()' was used, there may be new symbols in the global
-        ## environment, unless 'source(local = TRUE)' was used
-        keys.global1 <- ls(globalenv())  ## doesn't capture names beginning with '.'
-        new.global <- setdiff(keys.global1, keys.global0)
+        ## If 'source()' was used, there may be new symbols in the
+        ## global environment, unless 'source(local = TRUE)' was used.
+        ## Also applies for 'set.seed()'.
+        
+        global2 <- globalenv()
+        new.global <- checkNewSymbols(global1, global2)
 
         copy2env(new.global, globalenv(), env)
 
