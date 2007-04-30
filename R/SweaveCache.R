@@ -62,12 +62,18 @@ copy2env <- function(keys, fromEnv, toEnv) {
 }
 
 ## Check for new symbols in 'e2' that are not in 'e1'; doesn't check
-## for modified symbols
+## for modified symbols.
 
+## If 'source()' was used, there may be new symbols in the global
+## environment, unless 'source(local = TRUE)' was used.  Also applies
+## for 'set.seed()'.
+        
 checkNewSymbols <- function(e1, e2) {
         if(identical(e1, e2))
                 return(character(0))
         specials <- c(".Random.seed")
+
+        ## Don't check for names beginning with '.' for now
         sym1 <- ls(e1)
         sym2 <- ls(e2)
         newsym <- setdiff(sym2, sym1)
@@ -89,16 +95,13 @@ evalAndDumpToDB <- function(db, expr, exprDigest) {
         env <- new.env(parent = globalenv())
         global1 <- globalenv()
 
-        ## Evaluate the expression
         eval(expr, env)
 
-        ## If 'source()' was used, there may be new symbols in the
-        ## global environment, unless 'source(local = TRUE)' was used.
-        ## Also applies for 'set.seed()'.
-        
         global2 <- globalenv()
-        new.global <- checkNewSymbols(global1, global2)
 
+        ## Functions like 'source' and 'set.seed' alter the global
+        ## environment, so check after evaluation
+        new.global <- checkNewSymbols(global1, global2)
         copy2env(new.global, globalenv(), env)
 
         ## Get newly assigned object names
