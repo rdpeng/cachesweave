@@ -115,7 +115,9 @@ mangleDigest <- function(x) {
 ## evaluation is skipped.
 ################################################################################
 
-cacheSweaveEvalWithOpt <- function (expr, options, chunkDigest){
+cacheSweaveEvalWithOpt <- function (expr, options) {
+        chunkDigest <- options$chunkDigest
+        
         ## 'expr' is a single expression, so something like 'a <- 1'
         res <- NULL
 
@@ -200,9 +202,10 @@ makeMapFileName <- function(Rnwfile) {
         mapfile
 }
 
-writeMetadata <- function(options, object, chunkexps, chunkprefix) {
+writeChunkMetadata <- function(options, object, chunkexps, chunkprefix) {
         chunkDigest <- digest(chunkexps)
-
+        options$chunkDigest <- chunkDigest
+        
         ## If there's a data map file then write the chunk name and the
         ## directory of the chunk database to the map file (in DCF format)
         dbName <- if(isTRUE(options$cache))
@@ -229,6 +232,7 @@ writeMetadata <- function(options, object, chunkexps, chunkprefix) {
                                cacheDB = dbName,
                                time = Sys.time())
         write.dcf(mapEntry, file = mapFile, append = TRUE, width = 2000)
+        options
 }
 
 ## This function is essentially unchanged from the original Sweave
@@ -284,7 +288,8 @@ cacheSweaveRuncode <- function(object, chunk, options) {
         RweaveTryStop(chunkexps, options)
 
         ## Adding my own stuff here [RDP]
-        writeMetadata(options, object, chunkexps, chunkprefix)
+        ## Add 'chunkDigest' to 'options'
+        options <- writeChunkMetadata(options, object, chunkexps, chunkprefix)
         ## End adding my own stuff [RDP]
 
         openSinput <- FALSE
@@ -359,7 +364,7 @@ cacheSweaveRuncode <- function(object, chunk, options) {
                 err <- NULL
 
                 ## [RDP] change this line to use my EvalWithOpt function
-                if(options$eval) err <- cacheSweaveEvalWithOpt(ce, options, chunkDigest)
+                if(options$eval) err <- cacheSweaveEvalWithOpt(ce, options)
                 ## [RDP] end change
 
                 cat("\n") # make sure final line is complete
