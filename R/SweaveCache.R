@@ -79,8 +79,8 @@ checkNewSymbols <- function(e1, e2) {
         newsym <- setdiff(sym2, sym1)
 
         use <- sapply(specials, function(s) {
-                not.in1 <- !exists(s, e1, inherits=FALSE)
-                in2 <- exists(s, e2, inherits=FALSE)
+                not.in1 <- !exists(s, e1, inherits = FALSE)
+                in2 <- exists(s, e2, inherits = FALSE)
                 not.in1 && in2
         })
         c(newsym, specials[use])
