@@ -202,8 +202,11 @@ makeMapFileName <- function(Rnwfile) {
         mapfile
 }
 
-writeChunkMetadata <- function(options, object, chunkexps, chunkprefix) {
+writeChunkMetadata <- function(object, chunk, options) {
+        chunkprefix <- utils::RweaveChunkPrefix(options)
+        chunkexps <- parse(text = chunk)
         chunkDigest <- digest(chunkexps)
+
         options$chunkDigest <- chunkDigest
         
         ## If there's a data map file then write the chunk name and the
@@ -289,7 +292,7 @@ cacheSweaveRuncode <- function(object, chunk, options) {
 
         ## Adding my own stuff here [RDP]
         ## Add 'chunkDigest' to 'options'
-        options <- writeChunkMetadata(options, object, chunkexps, chunkprefix)
+        options <- writeChunkMetadata(object, chunk, options)
         ## End adding my own stuff [RDP]
 
         openSinput <- FALSE
