@@ -61,6 +61,22 @@ copy2env <- function(keys, fromEnv, toEnv) {
         }
 }
 
+isNewOrModified <- function(specials, e1, e2) {
+        sapply(specials, function(s) {
+                not.in1 <- !exists(s, e1, inherits = FALSE)
+                in2 <- exists(s, e2, inherits = FALSE)
+                is.new <- not.in1 && in2
+
+                if(is.new)
+                        TRUE
+                else {
+                        ## is modified?
+                        !identical(get(s, e1, inherits = FALSE),
+                                   get(s, e2, inherits = FALSE))
+                }
+        })
+}
+
 ## Check for new symbols in 'e2' that are not in 'e1'; doesn't check
 ## for modified symbols.
 
@@ -78,11 +94,7 @@ checkNewSymbols <- function(e1, e2) {
         sym2 <- ls(e2)
         newsym <- setdiff(sym2, sym1)
 
-        use <- sapply(specials, function(s) {
-                not.in1 <- !exists(s, e1, inherits = FALSE)
-                in2 <- exists(s, e2, inherits = FALSE)
-                not.in1 && in2
-        })
+        use <- isNewOrModified(specials, e1, e2)
         c(newsym, specials[use])
 }
 
