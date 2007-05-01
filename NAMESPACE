@@ -4,6 +4,5 @@ export(
        "cacheSweaveDriver"
        )
 
-import("utils")
-
-
+import(utils)
+import(digest)
