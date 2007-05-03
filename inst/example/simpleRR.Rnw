@@ -1,0 +1,51 @@
+\documentclass{article}
+
+\usepackage[margin=1in]{geometry}
+
+\setlength{\parindent}{0in}
+
+\title{A Simple Sweave Document using Caching}
+\author{Roger D. Peng}
+
+\SweaveOpts{eps=false}
+
+\begin{document}
+
+\maketitle
+
+First we load the packages which contain the data and functions that
+we will need later
+<<LoadPackages>>=
+library(datasets)
+library(utils)
+@
+
+We fit a linear model to the \texttt{airquality} dataset.  In this
+code chunk we will turn caching on so that we cache the
+\texttt{airquality} data frame and the \texttt{fit} object.
+<<FitLinearModel,cache=true>>=
+data(airquality)
+fit <- lm(Ozone ~ Temp + Wind + Solar.R, data = airquality)
+@
+
+We can summarize the regression coefficients and their uncertainties
+in a table
+<<CoefficientTable,results=tex>>=
+library(xtable)
+print(xtable(fit))
+@
+
+We can also plot some model diagnostics.
+\begin{figure}
+  \centering
+<<LinearModelDiagnosticPlots,fig=true>>=
+oldpar <- par(no.readonly = TRUE)
+par(mfcol = c(2, 2))
+plot(fit, ask = FALSE)
+par(oldpar)
+@
+\caption{Linear model diagnostic plots}
+\end{figure}
+
+
+\end{document}
