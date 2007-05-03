@@ -1,0 +1,37 @@
+
+R version 2.5.0 (2007-04-23)
+Copyright (C) 2007 The R Foundation for Statistical Computing
+ISBN 3-900051-07-0
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> library(cacheSweave)
+Loading required package: filehash
+Simple key-value database (1.0 2007-04-27)
+Loading required package: stashR
+A Set of Tools for Administering SHared Repositories (0.3 2007-04-27)
+> 
+> infile <- system.file("example", "simpleRR.Rnw", package = "cacheSweave")
+> 
+> setCacheDir("cache")
+> 
+> Sweave(infile, driver = cacheSweaveDriver)
+Writing to file simpleRR.tex
+Processing code chunks ...
+ 1 : echo term verbatim (label=LoadPackages)
+ 2 : echo term verbatim (label=FitLinearModel)
+ 3 : echo term tex (label=CoefficientTable)
+ 4 : echo term verbatim pdf (label=LinearModelDiagnosticPlots)
+
+You can now run LaTeX on 'simpleRR.tex'
+> 
