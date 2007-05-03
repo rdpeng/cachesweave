@@ -1,7 +1,7 @@
 Package: cacheSweave
 Title: Tools for caching Sweave computations
-Version: 0.4
-Date: 2007-05-01
+Version: 0.4-1
+Date: 2007-05-03
 Depends: R (>= 2.4.1), filehash, stashR
 Imports: utils, digest
 Author: Roger D. Peng <rpeng@jhsph.edu>
