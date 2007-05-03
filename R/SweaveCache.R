@@ -61,19 +61,33 @@ copy2env <- function(keys, fromEnv, toEnv) {
         }
 }
 
+## Take an environment and return a copy.  Not an exact copy because
+## we don't get all keys (not sure why, but for some reason I remember
+## that getting all the keys caused problems.
+
+copyEnv <- function(from) {
+        env <- new.env(parent = parent.env(from))
+        keys <- ls(from, all.names = FALSE)
+
+        for(key in keys) 
+                assign(key, get(key, from, inherits = FALSE), env)
+        env
+}
+
 isNewOrModified <- function(specials, e1, e2) {
         sapply(specials, function(s) {
-                not.in1 <- !exists(s, e1, inherits = FALSE)
+                in1 <- exists(s, e1, inherits = FALSE)
                 in2 <- exists(s, e2, inherits = FALSE)
-                is.new <- not.in1 && in2
-
-                if(is.new)
+                is.new <- !in1 && in2
+                is.deleted <- in1 && !in2
+                
+                if((!in1 && !in2) || is.deleted)
+                        FALSE
+                else if(is.new)
                         TRUE
-                else {
-                        ## is modified?
+                else 
                         !identical(get(s, e1, inherits = FALSE),
                                    get(s, e2, inherits = FALSE))
-                }
         })
 }
 
@@ -105,11 +119,11 @@ checkNewSymbols <- function(e1, e2) {
 
 evalAndDumpToDB <- function(db, expr, exprDigest) {
         env <- new.env(parent = globalenv())
-        global1 <- globalenv()
-
+        global1 <- copyEnv(globalenv())
+        
         eval(expr, env)
 
-        global2 <- globalenv()
+        global2 <- copyEnv(globalenv())
 
         ## Functions like 'source' and 'set.seed' alter the global
         ## environment, so check after evaluation
