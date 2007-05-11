@@ -17,16 +17,6 @@
 ## 02110-1301, USA
 #####################################################################
 
-setCacheDir <- function(path) {
-        assign("cacheDir", path, .cacheEnv)
-        dir.create(path, showWarnings = FALSE)
-}
-
-getCacheDir <- function() {
-        get("cacheDir", .cacheEnv, inherits = FALSE)
-}
-
-######################################################################
 ######################################################################
 ## Taken/adapted from Sweave code by Friedrich Leisch, along the lines
 ## of 'weaver' from Bioconductor, but more naive and we use 'stashR'
