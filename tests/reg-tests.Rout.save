@@ -19,7 +19,7 @@ Type 'q()' to quit R.
 Loading required package: filehash
 Simple key-value database (1.0 2007-04-27)
 Loading required package: stashR
-A Set of Tools for Administering SHared Repositories (0.3 2007-04-27)
+A Set of Tools for Administering SHared Repositories (0.3-1 2007-05-14)
 > 
 > infile <- system.file("example", "simpleRR.Rnw", package = "cacheSweave")
 > 
