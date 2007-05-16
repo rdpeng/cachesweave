@@ -15,11 +15,7 @@ Type 'demo()' for some demos, 'help()' for on-line help, or
 'help.start()' for an HTML browser interface to help.
 Type 'q()' to quit R.
 
-> library(cacheSweave)
-Loading required package: filehash
-Simple key-value database (1.0 2007-04-27)
-Loading required package: stashR
-A Set of Tools for Administering SHared Repositories (0.3-1 2007-05-14)
+> suppressMessages(library(cacheSweave))
 > 
 > infile <- system.file("example", "simpleRR.Rnw", package = "cacheSweave")
 > 
@@ -43,7 +39,7 @@ You can now run LaTeX on 'simpleRR.tex'
 > ## Database should contain 'airquality' and 'fit'
 > 
 > dname <- dir("cache", full.names = TRUE)
-> library(stashR)
+> suppressMessages(library(stashR))
 > db <- new("localDB", dir = dname, name = "cacheDB")
 > dbList(db)
 [1] ".__856743e03e5d0d595e4ee5c9ab86052e__"

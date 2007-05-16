@@ -1,4 +1,4 @@
-library(cacheSweave)
+suppressMessages(library(cacheSweave))
 
 infile <- system.file("example", "simpleRR.Rnw", package = "cacheSweave")
 
@@ -13,6 +13,6 @@ ls()
 ## Database should contain 'airquality' and 'fit'
 
 dname <- dir("cache", full.names = TRUE)
-library(stashR)
+suppressMessages(library(stashR))
 db <- new("localDB", dir = dname, name = "cacheDB")
 dbList(db)
