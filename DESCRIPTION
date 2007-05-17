@@ -4,6 +4,7 @@ Version: 0.4-2
 Date: 2007-05-16
 Depends: R (>= 2.4.1), filehash, stashR
 Imports: utils, digest
+LazyLoad: yes
 Author: Roger D. Peng <rpeng@jhsph.edu>
 Maintainer: Roger D. Peng <rpeng@jhsph.edu>
 Description: Tools for caching Sweave computations and storing them in key-value databases
