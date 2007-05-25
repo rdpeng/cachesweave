@@ -169,7 +169,7 @@ cacheSweaveEvalWithOpt <- function (expr, options) {
                 ## Create database name from chunk label and MD5
                 ## digest
                 dbName <- makeChunkDatabaseName(cachedir, options, chunkDigest)
-                exprDigest <- mangleDigest(digest(expr))
+                exprDigest <- mangleDigest(digest(expr, algo = "md5"))
 
                 ## Create 'stashR' database
                 db <- new("localDB", dir = dbName, name = basename(dbName))
@@ -245,7 +245,7 @@ makeMapFileName <- function(Rnwfile) {
 writeChunkMetadata <- function(object, chunk, options) {
         chunkprefix <- utils::RweaveChunkPrefix(options)
         chunkexps <- parse(text = chunk)
-        chunkDigest <- digest(chunkexps)
+        chunkDigest <- digest(chunkexps, algo = "md5")
 
         options$chunkDigest <- chunkDigest
         
