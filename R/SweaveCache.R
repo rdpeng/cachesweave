@@ -169,10 +169,9 @@ cacheSweaveEvalWithOpt <- function (expr, options) {
                 ## Create database name from chunk label and MD5
                 ## digest
                 dbName <- makeChunkDatabaseName(cachedir, options, chunkDigest)
-                exprDigest <- mangleDigest(digest(expr, algo = "md5"))
-
-                ## Create 'stashR' database
                 db <- new("localDB", dir = dbName, name = basename(dbName))
+
+                exprDigest <- mangleDigest(digest(expr, algo = "md5"))
 
                 ## If the current expression is not cached, then
                 ## evaluate the expression and dump the resulting
