@@ -19,9 +19,9 @@
 
 ######################################################################
 ## Taken/adapted from Sweave code by Friedrich Leisch, along the lines
-## of 'weaver' from Bioconductor, but more naive and we use 'stashR'
-## databases for the backend.  We also don't check dependencies on
-## previous chunks.
+## of 'weaver' from Bioconductor, but more naive and we use a
+## different database format for storing the cached computations.  We
+## also don't check dependencies on previous chunks.
 
 cacheSweaveDriver <- function() {
         list(
@@ -34,16 +34,6 @@ cacheSweaveDriver <- function() {
 }
 
 ######################################################################
-## Take a 'filehash' database and insert a bunch of key/value pairs
-
-dumpToDB <- function(db, list = character(0), envir = parent.frame()) {
-        if(!is(db, "filehash"))
-                stop("'db' should be a 'filehash' database")
-        for(i in seq(along = list))
-                dbInsert(db, list[i], get(list[i], envir, inherits = FALSE))
-        invisible(db)
-}
-
 copy2env <- function(keys, fromEnv, toEnv) {
         for(key in keys) {
                 assign(key, get(key, fromEnv, inherits = FALSE), toEnv)
@@ -108,7 +98,7 @@ checkNewSymbols <- function(e1, e2) {
 ## objects in 'global1' and 'global2' are never modified and therefore
 ## do not end up using extra memory.
 
-evalAndDumpToDB <- function(expr, exprFile) {
+evalAndCache <- function(expr, exprFile, cache = TRUE) {
         env <- new.env(parent = globalenv())
         global1 <- copyEnv(globalenv())
         
@@ -124,8 +114,10 @@ evalAndDumpToDB <- function(expr, exprFile) {
         ## Get newly assigned object names
         keys <- ls(env, all.names = TRUE)
 
-        saveWithIndex(keys, exprFile, env)
-        keys
+        if(cache) 
+                saveWithIndex(keys, exprFile, env)
+        else 
+                env
 }
 
 exprFileName <- function(cachedir, options, exprDigest) {
@@ -160,9 +152,6 @@ cacheSweaveEvalWithOpt <- function (expr, options) {
                 return(res)
         if(options$cache) {
                 cachedir <- getCacheDir()
-
-                ## Create database name from chunk label and MD5
-                ## digest
                 chunkdir <- makeChunkDirName(cachedir, options)
 
                 if(!file.exists(chunkdir))
@@ -174,9 +163,11 @@ cacheSweaveEvalWithOpt <- function (expr, options) {
                 ## evaluate the expression and dump the resulting
                 ## objects to the database.
 
-                status <- if(!file.exists(exprFile)) {
+                res <- if(!file.exists(exprFile)) {
                         try({
-                                evalAndDumpToDB(expr, exprFile)
+                                withVisible({
+                                        evalAndCache(expr, exprFile)
+                                })
                         }, silent = TRUE)
                 }
                 else  
@@ -184,22 +175,24 @@ cacheSweaveEvalWithOpt <- function (expr, options) {
 
                 ## (If there was an error then just return the
                 ## condition object and let Sweave deal with it.)
-                if(inherits(status, "try-error"))
-                        return(status)
+                if(inherits(res, "try-error"))
+                        return(res)
                 
                 lazyLoad(exprFile, globalenv())
         }
         else {
-                ## If caching is turned off, just evaluate the expression
-                ## in the global environment
-                res <- try(.Internal(eval.with.vis(expr, .GlobalEnv,
-                                                   baseenv())),
-                           silent=TRUE)
+                res <- try({
+                        withVisible({
+                                evalAndCache(expr, exprFile = NULL,
+                                             cache = FALSE)
+                        })
+                }, silent = TRUE)
                 if(inherits(res, "try-error"))
                         return(res)
-                if(options$print | (options$term & res$visible))
-                        print(res$value)
+                copy2env(ls(env, all.names = TRUE), env, globalenv())
         }
+        if(options$print | (options$term & res$visible))
+                print(res$value)
         res
 }
 
