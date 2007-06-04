@@ -1,7 +1,11 @@
 export(
        "setCacheDir",
        "getCacheDir",
-       "cacheSweaveDriver"
+       "cacheSweaveDriver",
+       "showcache",
+       "exprObjects",
+       "getExpressions",
+       "findExprLocals"
        )
 
 import(utils)

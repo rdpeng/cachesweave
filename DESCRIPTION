@@ -3,7 +3,7 @@ Title: Tools for caching Sweave computations
 Version: 0.5
 Date: 2007-05-16
 Depends: R (>= 2.4.1)
-Imports: utils, digest
+Imports: utils, digest, codetools
 LazyLoad: yes
 Author: Roger D. Peng <rpeng@jhsph.edu>
 Maintainer: Roger D. Peng <rpeng@jhsph.edu>
