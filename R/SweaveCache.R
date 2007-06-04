@@ -64,8 +64,11 @@ copyEnv <- function(from) {
         env
 }
 
-isNewOrModified <- function(specials, e1, e2) {
-        sapply(specials, function(s) {
+## Check for new symbols in 'e2' that are not in 'e1'; doesn't check
+## for modified symbols.
+
+isNewOrModified <- function(symbolnames, e1, e2) {
+        sapply(symbolnames, function(s) {
                 in1 <- exists(s, e1, inherits = FALSE)
                 in2 <- exists(s, e2, inherits = FALSE)
                 is.new <- !in1 && in2
@@ -81,9 +84,6 @@ isNewOrModified <- function(specials, e1, e2) {
         })
 }
 
-## Check for new symbols in 'e2' that are not in 'e1'; doesn't check
-## for modified symbols.
-
 ## If 'source()' was used, there may be new symbols in the global
 ## environment, unless 'source(local = TRUE)' was used.  Also applies
 ## for 'set.seed()'.
@@ -94,12 +94,10 @@ checkNewSymbols <- function(e1, e2) {
         specials <- c(".Random.seed")
 
         ## Don't check for names beginning with '.' for now
-        sym1 <- ls(e1)
-        sym2 <- ls(e2)
-        newsym <- setdiff(sym2, sym1)
+        allsym <- unique(c(ls(e1), ls(e2), specials))
 
-        use <- isNewOrModified(specials, e1, e2)
-        c(newsym, specials[use])
+        use <- isNewOrModified(allsym, e1, e2)
+        allsym[use]
 }
 
 ## Take an expression, evaluate it in a local environment and dump the
@@ -107,7 +105,11 @@ checkNewSymbols <- function(e1, e2) {
 ## with a digest of the expression.  Return a character vector of keys
 ## that were dumped
 
-evalAndDumpToDB <- function(db, expr, exprDigest) {
+## I *think* the 'copyEnv' stuff is okay w.r.t efficiency because the
+## objects in 'global1' and 'global2' are never modified and therefore
+## do not end up using extra memory.
+
+evalAndDumpToDB <- function(expr, exprFile) {
         env <- new.env(parent = globalenv())
         global1 <- copyEnv(globalenv())
         
@@ -123,22 +125,17 @@ evalAndDumpToDB <- function(db, expr, exprDigest) {
         ## Get newly assigned object names
         keys <- ls(env, all.names = TRUE)
 
-        ## Associate the newly created keys with the digest of
-        ## the expression
-        dbInsert(db, exprDigest, keys)
-
-        ## Dump the values of the keys to the database
-        dumpToDB(db, list = keys, envir = env)
-
+        saveWithIndex(keys, exprFile, env)
         keys
 }
 
-makeChunkDatabaseName <- function(cachedir, options, chunkDigest) {
-        file.path(cachedir, paste(options$label, chunkDigest, sep = "_"))
+exprFileName <- function(cachedir, options, exprDigest) {
+        chunkdir <- makeChunkDirName(cachedir, options, options$chunkDigest)
+        file.path(chunkdir, exprDigest)
 }
 
-mangleDigest <- function(x) {
-        paste(".__", x, "__", sep = "")
+makeChunkDirName <- function(cachedir, options, chunkDigest) {
+        file.path(cachedir, paste(options$label, chunkDigest, sep = "_"))
 }
 
 ################################################################################
@@ -156,8 +153,6 @@ mangleDigest <- function(x) {
 ################################################################################
 
 cacheSweaveEvalWithOpt <- function (expr, options) {
-        chunkDigest <- options$chunkDigest
-        
         ## 'expr' is a single expression, so something like 'a <- 1'
         res <- NULL
 
@@ -168,29 +163,26 @@ cacheSweaveEvalWithOpt <- function (expr, options) {
 
                 ## Create database name from chunk label and MD5
                 ## digest
-                dbName <- makeChunkDatabaseName(cachedir, options, chunkDigest)
-                db <- new("localDB", dir = dbName, name = basename(dbName))
-
-                exprDigest <- mangleDigest(digest(expr, algo = "md5"))
+                exprDigest <- digest(expr, algo = "md5")
+                exprFile <- exprFileName(cachedir, options, exprDigest)
 
                 ## If the current expression is not cached, then
                 ## evaluate the expression and dump the resulting
                 ## objects to the database.  Otherwise, just read the
                 ## vector of keys from the database
 
-                keys <- if(!dbExists(db, exprDigest)) 
+                keys <- if(!file.exists(exprFile)) {
                         try({
-                                evalAndDumpToDB(db, expr, exprDigest)
+                                evalAndDumpToDB(expr, exprFile)
                         }, silent = TRUE)
+                }
                 else 
-                        dbFetch(db, exprDigest)
+                        lazyLoad(exprFile, globalenv())
 
-                ## If there was an error then just return the
-                ## condition object and let Sweave deal with it.
-                if(inherits(keys, "try-error"))
-                        return(keys)
-
-                dbLazyLoad(db, globalenv(), keys)
+                ## (If there was an error then just return the
+                ## condition object and let Sweave deal with it.)
+                
+                keys
         }
         else {
                 ## If caching is turned off, just evaluate the expression
@@ -251,7 +243,7 @@ writeChunkMetadata <- function(object, chunk, options) {
         ## If there's a data map file then write the chunk name and the
         ## directory of the chunk database to the map file (in DCF format)
         dbName <- if(isTRUE(options$cache))
-                makeChunkDatabaseName(getCacheDir(), options, chunkDigest)
+                makeChunkDirName(getCacheDir(), options, chunkDigest)
         else
                 ""
         ## Capture figure filenames; default to PDF, otherwise use EPS.
