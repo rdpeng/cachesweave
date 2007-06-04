@@ -33,7 +33,6 @@ cacheSweaveDriver <- function() {
              )
 }
 
-
 ######################################################################
 ## Take a 'filehash' database and insert a bunch of key/value pairs
 
@@ -130,12 +129,13 @@ evalAndDumpToDB <- function(expr, exprFile) {
 }
 
 exprFileName <- function(cachedir, options, exprDigest) {
-        chunkdir <- makeChunkDirName(cachedir, options, options$chunkDigest)
+        chunkdir <- makeChunkDirName(cachedir, options)
         file.path(chunkdir, exprDigest)
 }
 
-makeChunkDirName <- function(cachedir, options, chunkDigest) {
-        file.path(cachedir, paste(options$label, chunkDigest, sep = "_"))
+makeChunkDirName <- function(cachedir, options) {
+        file.path(cachedir, paste(options$label, options$chunkDigest,
+                                  sep = "_"))
 }
 
 ################################################################################
@@ -163,26 +163,31 @@ cacheSweaveEvalWithOpt <- function (expr, options) {
 
                 ## Create database name from chunk label and MD5
                 ## digest
+                chunkdir <- makeChunkDirName(cachedir, options)
+
+                if(!file.exists(chunkdir))
+                        dir.create(chunkdir, recursive = TRUE)
                 exprDigest <- digest(expr, algo = "md5")
                 exprFile <- exprFileName(cachedir, options, exprDigest)
 
                 ## If the current expression is not cached, then
                 ## evaluate the expression and dump the resulting
-                ## objects to the database.  Otherwise, just read the
-                ## vector of keys from the database
+                ## objects to the database.
 
-                keys <- if(!file.exists(exprFile)) {
+                status <- if(!file.exists(exprFile)) {
                         try({
                                 evalAndDumpToDB(expr, exprFile)
                         }, silent = TRUE)
                 }
-                else 
-                        lazyLoad(exprFile, globalenv())
+                else  
+                        NULL  ## use cache
 
                 ## (If there was an error then just return the
                 ## condition object and let Sweave deal with it.)
+                if(inherits(status, "try-error"))
+                        return(status)
                 
-                keys
+                lazyLoad(exprFile, globalenv())
         }
         else {
                 ## If caching is turned off, just evaluate the expression
@@ -237,13 +242,12 @@ writeChunkMetadata <- function(object, chunk, options) {
         chunkprefix <- utils::RweaveChunkPrefix(options)
         chunkexps <- parse(text = chunk)
         chunkDigest <- digest(chunkexps, algo = "md5")
-
         options$chunkDigest <- chunkDigest
         
         ## If there's a data map file then write the chunk name and the
         ## directory of the chunk database to the map file (in DCF format)
         dbName <- if(isTRUE(options$cache))
-                makeChunkDirName(getCacheDir(), options, chunkDigest)
+                makeChunkDirName(getCacheDir(), options)
         else
                 ""
         ## Capture figure filenames; default to PDF, otherwise use EPS.
