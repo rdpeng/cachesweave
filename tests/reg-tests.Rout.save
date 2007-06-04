@@ -39,11 +39,6 @@ You can now run LaTeX on 'simpleRR.tex'
 > ## Database should contain 'airquality' and 'fit'
 > 
 > dname <- dir("cache", full.names = TRUE)
-> suppressMessages(library(stashR))
-> db <- new("localDB", dir = dname, name = "cacheDB")
-> dbList(db)
-[1] ".__856743e03e5d0d595e4ee5c9ab86052e__"
-[2] "airquality"                           
-[3] ".__1a92865db91cad5463c99e83d570c353__"
-[4] "fit"                                  
+> dir(dname, recursive = TRUE)
+[1] "1a92865db91cad5463c99e83d570c353" "856743e03e5d0d595e4ee5c9ab86052e"
 > 
