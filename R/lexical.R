@@ -48,7 +48,7 @@ buildDepTree <- function(i, exprList, edep, eobj) {
         })
         names(created) <- edep[[i]]
         lapply(created, function(j) {
-                list(origin = as.expression(exprList[[j]]),
+                list(origin = exprList[j]),
                      origin.idx = j,
                      depends = buildDepTree(j, exprList, edep, eobj))
         })
