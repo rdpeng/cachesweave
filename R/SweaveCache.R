@@ -238,12 +238,12 @@ writeChunkMetadata <- function(object, chunk, options) {
         
         ## If there's a data map file then write the chunk name and the
         ## directory of the chunk database to the map file (in DCF format)
-        dbName <- if(isTRUE(options$cache))
+        dbName <- if(options$cache)
                 makeChunkDirName(getCacheDir(), options)
         else
                 ""
         ## Capture figure filenames; default to PDF, otherwise use EPS.
-        ## Filenames are <chunkprefix>.<extenstion>, which could change in
+        ## Filenames are <chunkprefix>.<extension>, which could change in
         ## the future depending on Sweave implementation details
         figname <- ""
         if(options$fig && options$eval) {
