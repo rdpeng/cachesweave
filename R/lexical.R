@@ -1,3 +1,20 @@
+cacheEval <- function(Rnwfile, cache = TRUE) {
+        message("reading expressions")
+        exprList <- getExpressions(Rnwfile)
+
+        message("getting expression objects")
+        exprObj <- lapply(exprList, getExprObjects)
+
+        message("finding expression dependencies")
+        exprDep <- lapply(exprList, findExprLocals)
+
+        message("building expression dependency trees")
+        exprTreeList <- lapply(seq_along(exprList), function(i) {
+                buildDepTree(i, exprList, exprDep, exprObj)
+        })
+        exprTreeList
+}
+
 getExpressions <- function(file) {
         fullpath <- normalizePath(file)
         tmpdir <- tempdir()
@@ -25,6 +42,15 @@ findExprLocals <- function(expr) {
         globals[isLocal]
 }
 
+## In order to figure out what objects an expression gives rise to, we
+## have to evaluate it.
+
+getExprObjects <- function(expr) {
+        env <- evalAndCache(expr, NULL, FALSE)
+        keys <- ls(env, all.names = TRUE)
+        copy2env(keys, env, globalenv())
+        keys
+}
 
 matchList <- function(x, listTab) {
         m <- sapply(listTab, function(tab) match(x, tab))
@@ -62,6 +88,8 @@ buildDepTree <- function(i, exprList, edep, eobj) {
         })
 }
 
+################################################################################
+
 runTree <- function(exprList) {
         with(exprList, {
                 lapply(seq_along(expr), function(i) {
@@ -83,24 +111,5 @@ codeseq <- function(exprTree) {
         sort(s, decreasing = TRUE)
 }
 
-runFile <- function(file) {
-        message("getting expressions")
-        e <- getExpressions(file)
-        message("finding expression locals")
-        edep <- lapply(e, findExprLocals)
-        message("getting expression objects")
-        eobj <- lapply(e, getExprObjects)
-        list(expr = e, dep = edep, obj = eobj)
-}
-
 ################################################################################
 
-## In order to figure out what objects an expression gives rise to, we
-## have to evaluate it.
-
-getExprObjects <- function(expr) {
-        env <- evalAndCache(expr, exprFile = NULL, cache = FALSE)
-        keys <- ls(env, all.names = TRUE)
-        copy2env(keys, env, globalenv())
-        keys
-}
