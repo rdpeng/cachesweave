@@ -9,4 +9,5 @@ export(
        )
 
 import(utils)
+importFrom(codetools, "findGlobals")
 importFrom(digest, "digest")
