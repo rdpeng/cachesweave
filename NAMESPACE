@@ -3,9 +3,10 @@ export(
        "getCacheDir",
        "cacheSweaveDriver",
        "showcache",
-       "exprObjects",
+       "getExprObjects",
        "getExpressions",
-       "findExprLocals"
+       "findExprLocals",
+       "buildDepTree"
        )
 
 import(utils)
