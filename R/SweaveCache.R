@@ -48,8 +48,10 @@ copyEnv <- function(from) {
         env <- new.env(parent = parent.env(from))
         keys <- ls(from, all.names = FALSE)
 
-        for(key in keys) 
-                assign(key, get(key, from, inherits = FALSE), env)
+        for(key in keys) {
+                obj <- get(key, from, inherits = FALSE)
+                assign(key, obj, env, inherits = FALSE)
+        }
         env
 }
 
@@ -116,8 +118,7 @@ evalAndCache <- function(expr, exprFile, cache = TRUE) {
 
         if(cache) 
                 saveWithIndex(keys, exprFile, env)
-        else 
-                env
+        env
 }
 
 exprFileName <- function(cachedir, options, exprDigest) {
