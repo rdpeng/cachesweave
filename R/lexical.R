@@ -35,9 +35,10 @@ findExprGlobals <- function(expr) {
 
 findExprLocals <- function(expr) {
         globals <- findExprGlobals(expr)
+        searchList <- search()[-1]  ## exclude global env
         isLocal <- sapply(globals, function(sym) {
                 pos <- find(sym)
-                length(pos) == 0
+                length(pos) == 0 || !(pos %in% searchList)
         })
         globals[isLocal]
 }
