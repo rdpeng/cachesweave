@@ -35,23 +35,26 @@ matchList <- function(x, listTab) {
 }
 
 buildDepTree <- function(i, exprList, edep, eobj) {
+        leaf <- list(origin = as.integer(NA),
+                     origin.idx = as.integer(NA),
+                     depends = as.integer(NA))
         if(is.na(i) || i < 2)
-                return(list(origin = NA, origin.idx = NA, depends = NA))
+                return(leaf)
         exprList <- exprList[1:i]
         edep <- edep[1:i]
         eobj <- eobj[1:i]
 
         if(length(edep[[i]]) == 0)  ## no dependencies
-                return(list(origin = NA, origin.idx = NA, depends = NA))
+                return(leaf)
         created <- lapply(edep[[i]], function(x) {
+                ## Find the index of the first expression (going
+                ## backwards) where object 'x' is created                
                 as.integer( i - matchList(x, eobj[(i-1):1]) )
         })
         names(created) <- edep[[i]]
         lapply(created, function(j) {
                 if(is.na(j)) 
-                        list(origin = NA,
-                             origin.idx = NA,
-                             depends = NA)
+                        leaf
                 else
                         list(origin = exprList[j],
                              origin.idx = j,
@@ -65,6 +68,19 @@ runTree <- function(exprList) {
                         buildDepTree(i, expr, dep, obj)
                 })
         })
+}
+
+showcode <- function(exprTree, exprList) {
+        s <- codeseq(exprTree)
+        if(length(s) == 0)
+                return(NULL)
+        as.list(exprList$expr[rev(s)])
+}
+
+codeseq <- function(exprTree) {
+        r <- rapply(exprTree, function(x) x, classes = "integer")
+        s <- unique(unlist(r))
+        sort(s, decreasing = TRUE)
 }
 
 runFile <- function(file) {
