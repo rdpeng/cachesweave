@@ -183,15 +183,14 @@ cacheSweaveEvalWithOpt <- function (expr, options) {
         else {
                 res <- try({
                         withVisible({
-                                evalAndCache(expr, exprFile = NULL,
-                                             cache = FALSE)
+                                eval(expr, globalenv(), baseenv())
                         })
                 }, silent = TRUE)
                 if(inherits(res, "try-error"))
                         return(res)
-                copy2env(ls(env, all.names = TRUE), env, globalenv())
+                ## copy2env(ls(env, all.names = TRUE), env, globalenv())
         }
-        if(options$print | (options$term & res$visible))
+        if(!is.null(res) && (options$print | (options$term & res$visible)))
                 print(res$value)
         res
 }
@@ -259,6 +258,7 @@ writeChunkMetadata <- function(object, chunk, options) {
         mapFile <- object[["mapFile"]]
         mapEntry <- data.frame(chunk = options$label,
                                chunkprefix = chunkprefix,
+                               chunkDigest = chunkDigest,
                                fig = figname,
                                cacheDB = dbName,
                                time = Sys.time())
