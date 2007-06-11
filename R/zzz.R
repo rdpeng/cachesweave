@@ -1,5 +1,5 @@
 .onLoad <- function(lib, pkg) {
-        assign("cacheDir", ".", .cacheEnv)
+        assign("cacheDir", "cache", .cacheEnv)
 }
 
 .onAttach <- function(lib, pkg) {
