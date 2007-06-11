@@ -135,15 +135,8 @@ makeChunkDirName <- function(cachedir, options) {
 ## The major modification is here: Rather than evaluate expressions
 ## and leave them in the global environment, we evaluate them in a
 ## local environment (that has globalenv() as the parent) and then
-## store the assignments in a 'stashR' database.  If an expression
-## does not give rise to new R objects, then nothing is saved.
-##
-## For each expression ('expr'), we compute a digest and associate
-## with that digest the names of the objects that were created by
-## evaluating the expression.  That way, for a given cached
-## expression, we know which keys to lazy-load from the cache when
-## evaluation is skipped.
-################################################################################
+## store the assignments in a database.  If an expression does not
+## give rise to new R objects, then nothing is saved.
 
 cacheSweaveEvalWithOpt <- function (expr, options) {
         ## 'expr' is a single expression, so something like 'a <- 1'
