@@ -6,8 +6,11 @@ saveWithIndex <- function(list = character(0), file, envir = parent.frame()) {
         
         byteList <- lapply(list, function(symname) {
                 x <- get(symname, envir, inherits = FALSE)
-                b <- serialize(x, connection = NULL)
-                list(key = symname, bytes = b)
+
+                if(is.environment(x))
+                        warning(gettextf("saving of environments not supported"))
+                list(key = symname,
+                     bytes = serialize(x, connection = NULL))
         })
         writeIndex(byteList, con)
         writeData(byteList, con)
@@ -31,7 +34,7 @@ writeData <- function(byteList, con) {
 }
 
 isEmptyIndex <- function(idx) {
-        length(idx) == 0
+        isTRUE(length(idx) == 0)
 }
 
 lazyLoad <- function(file, envir = parent.frame()) {
