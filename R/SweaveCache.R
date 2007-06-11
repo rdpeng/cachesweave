@@ -100,7 +100,8 @@ checkNewSymbols <- function(e1, e2) {
 ## objects in 'global1' and 'global2' are never modified and therefore
 ## do not end up using extra memory.
 
-evalAndCache <- function(expr, exprFile, cache = TRUE) {
+evalAndCache <- function(expr, options, cache = TRUE) {
+        exprID <- exprID(expr, options)
         env <- new.env(parent = globalenv())
         global1 <- copyEnv(globalenv())
         
@@ -116,19 +117,48 @@ evalAndCache <- function(expr, exprFile, cache = TRUE) {
         ## Get newly assigned object names
         keys <- ls(env, all.names = TRUE)
 
-        if(cache) 
+        if(cache) {
+                exprFile <- exprFileName(expr, options)
                 saveWithIndex(keys, exprFile, env)
+        }
         env
 }
 
-exprFileName <- function(cachedir, options, exprDigest) {
-        chunkdir <- makeChunkDirName(cachedir, options)
-        file.path(chunkdir, exprDigest)
+exprFileName <- function(expr, options) {
+        file.path(getCacheDir(), exprID(expr, options))
 }
 
 makeChunkDirName <- function(cachedir, options) {
         file.path(cachedir, paste(options$label, options$chunkDigest,
                                   sep = "_"))
+}
+
+exprID <- function(expr, options) {
+        paste(options$chunkDigest, digest(expr), sep = "-")
+}
+
+
+updateMetaData <- function(expr, options) {
+        ## Capture figure filenames; default to PDF, otherwise use EPS.
+        ## Filenames are <chunkprefix>.<extension>, which could change in
+        ## the future depending on Sweave implementation details
+        figname <- ""
+        if(options$fig && options$eval) {
+                figname <- if(options$pdf)
+                        paste(chunkprefix, "pdf", sep = ".")
+                else if(options$eps)
+                        paste(chunkprefix, "eps", sep = ".")
+                else
+                        ""
+        }
+        ## Write out map file entry
+        mapEntry <- data.frame(chunk = options$label,
+                               chunkprefix = utils::RweaveChunkPrefix(options),
+                               exprID = exprID(expr, options),
+                               cache = options$cache,
+                               fig = figname,
+                               time = Sys.time())
+        write.dcf(mapEntry, file = con, append = TRUE, width = 5000)
 }
 
 ################################################################################
@@ -145,14 +175,8 @@ cacheSweaveEvalWithOpt <- function (expr, options) {
         if(!options$eval)
                 return(res)
         if(options$cache) {
-                cachedir <- getCacheDir()
-                chunkdir <- makeChunkDirName(cachedir, options)
-
-                if(!file.exists(chunkdir))
-                        dir.create(chunkdir, recursive = TRUE)
-                exprDigest <- digest(expr, algo = "md5")
-                exprFile <- exprFileName(cachedir, options, exprDigest)
-
+                exprFile <- exprFileName(expr, options)
+                
                 ## If the current expression is not cached, then
                 ## evaluate the expression and dump the resulting
                 ## objects to the database.
@@ -160,7 +184,7 @@ cacheSweaveEvalWithOpt <- function (expr, options) {
                 res <- if(!file.exists(exprFile)) {
                         try({
                                 withVisible({
-                                        evalAndCache(expr, exprFile)
+                                        evalAndCache(expr, options)
                                 })
                         }, silent = TRUE)
                 }
@@ -204,10 +228,18 @@ cacheSweaveSetup <- function(file, syntax,
         ## Additions here [RDP]
         ## Add the (non-standard) options for code chunks with caching
         out$options[["cache"]] <- cache
+        cachedir <- getCacheDir()
+        
+        message(gettextf("using cache directory '%s'", cachedir))
+
+        if(!file.exists(cachedir))
+                dir.create(cachedir)
 
         ## We assume that each .Rnw file gets its own map file
-        out[["mapFile"]] <- makeMapFileName(file)
-        file.create(out[["mapFile"]])  ## Overwrite an existing file
+        message(gettextf("creating map file '%s'", mapfile))
+        mapfile <- makeMapFileName(file)
+        out[["mapFile"]] <- mapfile
+        file.create(mapfile)  ## Overwrite an existing file
 
         ## End additions [RDP]
 ######################################################################
