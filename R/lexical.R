@@ -1,6 +1,23 @@
-cacheEval <- function(Rnwfile, cache = TRUE) {
+cacheRnwEval <- function(Rnwfile, cache = TRUE) {
         message("reading expressions")
         exprList <- getExpressions(Rnwfile)
+
+        message("getting expression objects")
+        exprObj <- lapply(exprList, getExprObjects)
+
+        message("finding expression dependencies")
+        exprDep <- lapply(exprList, findExprLocals)
+
+        message("building expression dependency trees")
+        exprTreeList <- lapply(seq_along(exprList), function(i) {
+                buildDepTree(i, exprList, exprDep, exprObj)
+        })
+        exprTreeList
+}
+
+cacheREval <- function(Rfile, cache = TRUE) {
+        message("reading expressions")
+        exprList <- parse(Rfile, srcfile = NULL)
 
         message("getting expression objects")
         exprObj <- lapply(exprList, getExprObjects)
@@ -53,6 +70,8 @@ getExprObjects <- function(expr) {
         copy2env(keys, env, globalenv())
         keys
 }
+
+## Find the first list element in 'listTab' where 'x' has a match
 
 matchList <- function(x, listTab) {
         m <- sapply(listTab, function(tab) match(x, tab))
