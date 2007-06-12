@@ -1,8 +1,7 @@
 export(
        "setCacheDir",
        "getCacheDir",
-       "cacheSweaveDriver",
-       "showcache"
+       "cacheSweaveDriver"
        )
 
 import(utils)
