@@ -1,6 +1,6 @@
 suppressMessages(library(cacheSweave))
 
-infile <- system.file("example", "simpleRR.Rnw", package = "cacheSweave")
+infile <- system.file("example", "simple.Rnw", package = "cacheSweave")
 
 setCacheDir("cache")
 
