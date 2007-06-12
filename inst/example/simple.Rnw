@@ -30,7 +30,7 @@ fit <- lm(Ozone ~ Temp + Wind + Solar.R, data = airquality)
 
 We can summarize the regression coefficients and their uncertainties
 in a table
-<<CoefficientTable,results=tex>>=
+<<CoefficientTable,results=tex,cache=true>>=
 library(xtable)
 print(xtable(fit))
 @
@@ -38,7 +38,7 @@ print(xtable(fit))
 We can also plot some model diagnostics.
 \begin{figure}
   \centering
-<<LinearModelDiagnosticPlots,fig=true>>=
+<<LinearModelDiagnosticPlots,fig=true,cache=true>>=
 oldpar <- par(no.readonly = TRUE)
 par(mfcol = c(2, 2))
 plot(fit, ask = FALSE)
