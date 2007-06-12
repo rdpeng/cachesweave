@@ -117,7 +117,7 @@ evalAndCache <- function(expr, exprFile, cache = TRUE) {
         keys <- ls(env, all.names = TRUE)
 
         if(length(keys) == 0 && !checkSideEffectList(expr)) {
-                message("expression has side effect: %s", digest(expr))
+                message("expression has side effect: ", digest(expr))
                 updateSideEffectList(expr)
         }
         if(cache) 
@@ -237,6 +237,11 @@ cacheSweaveSetup <- function(file, syntax,
         ## Add the (non-standard) options for code chunks with caching
         out$options[["cache"]] <- cache
 
+        cachedir <- getCacheDir()
+
+        if(!file.exists(cachedir))
+                dir.create(cachedir)
+        
         ## We assume that each .Rnw file gets its own map file
         out[["mapFile"]] <- makeMapFileName(file)
         file.create(out[["mapFile"]])  ## Overwrite an existing file
