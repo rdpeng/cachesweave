@@ -116,8 +116,10 @@ evalAndCache <- function(expr, exprFile, cache = TRUE) {
         ## Get newly assigned object names
         keys <- ls(env, all.names = TRUE)
 
-        if(length(keys) == 0 && !checkSideEffectList(expr))   
+        if(length(keys) == 0 && !checkSideEffectList(expr)) {
+                message("expression has side effect: %s", digest(expr))
                 updateSideEffectList(expr)
+        }
         if(cache) 
                 saveWithIndex(keys, exprFile, env)
         env
