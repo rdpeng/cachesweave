@@ -168,7 +168,7 @@ updateMetaData <- function(expr, options) {
 ## store the assignments in a database.  If an expression does not
 ## give rise to new R objects, then nothing is saved.
 
-cacheSweaveEvalWithOpt <- function (expr, options) {
+cacheSweaveEvalWithOpt <- function(expr, options) {
         ## 'expr' is a single expression, so something like 'a <- 1'
         res <- NULL
 
@@ -211,6 +211,23 @@ cacheSweaveEvalWithOpt <- function (expr, options) {
         if(!is.null(res) && (options$print | (options$term & res$visible)))
                 print(res$value)
         res
+}
+
+readChunks <- function(Rnwfile) {
+        fullpath <- normalizePath(Rnwfile)
+        tmpdir <- tempdir()
+        wd <- getwd()
+        on.exit(setwd(wd))
+        
+        setwd(tmpdir)
+        Stangle(fullpath, split = TRUE, quiet = TRUE)
+        infiles <- dir()
+        lapply(infiles, function(infile) {
+                chunk <- parse(infile, srcfile = NULL)
+                list(chunk = chunk,
+                     chunkDigest = digest(chunk),
+                     exprDigestList = lapply(chunk, digest))
+        })
 }
 
 ## Need to add the 'cache', 'filename' option to the list
