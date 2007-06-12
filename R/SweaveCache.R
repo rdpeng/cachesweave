@@ -116,6 +116,8 @@ evalAndCache <- function(expr, exprFile, cache = TRUE) {
         ## Get newly assigned object names
         keys <- ls(env, all.names = TRUE)
 
+        if(length(keys) == 0 && !checkSideEffectList(expr))   
+                updateSideEffectList(expr)
         if(cache) 
                 saveWithIndex(keys, exprFile, env)
         env
@@ -132,6 +134,35 @@ makeChunkDirName <- function(cachedir, options) {
 }
 
 ################################################################################
+## Handling expressions with side effects
+
+sideEffectListFile <- function() {
+        file.path(getCacheDir(), ".SideEffectList")
+}
+
+updateSideEffectList <- function(expr) {
+        exprDigest <- digest(expr)
+        con <- file(sideEffectListFile(), "a")
+        on.exit(close(con))
+        
+        writeLines(exprDigest, con)
+}
+
+initSideEffectList <- function() {
+        file <- sideEffectListFile()
+
+        if(!file.exists(file))
+                file.create(file)
+        invisible(file)
+}
+
+checkSideEffectList <- function(expr) {
+        exprDigest <- digest(expr)
+        exprList <- readLines(sideEffectListFile())
+        exprDigest %in% exprList
+}
+
+################################################################################
 ## The major modification is here: Rather than evaluate expressions
 ## and leave them in the global environment, we evaluate them in a
 ## local environment (that has globalenv() as the parent) and then
@@ -141,10 +172,10 @@ makeChunkDirName <- function(cachedir, options) {
 cacheSweaveEvalWithOpt <- function (expr, options) {
         ## 'expr' is a single expression, so something like 'a <- 1'
         res <- NULL
-
+        
         if(!options$eval)
                 return(res)
-        if(options$cache) {
+        if(options$cache && !checkSideEffectList(expr)) {
                 cachedir <- getCacheDir()
                 chunkdir <- makeChunkDirName(cachedir, options)
 
@@ -156,7 +187,6 @@ cacheSweaveEvalWithOpt <- function (expr, options) {
                 ## If the current expression is not cached, then
                 ## evaluate the expression and dump the resulting
                 ## objects to the database.
-
                 res <- if(!file.exists(exprFile)) {
                         try({
                                 withVisible({
@@ -165,7 +195,7 @@ cacheSweaveEvalWithOpt <- function (expr, options) {
                         }, silent = TRUE)
                 }
                 else  
-                        NULL  ## use cache
+                        NULL  ## load from cache
 
                 ## (If there was an error then just return the
                 ## condition object and let Sweave deal with it.)
@@ -209,6 +239,7 @@ cacheSweaveSetup <- function(file, syntax,
         out[["mapFile"]] <- makeMapFileName(file)
         file.create(out[["mapFile"]])  ## Overwrite an existing file
 
+        initSideEffectList()
         ## End additions [RDP]
 ######################################################################
         out
