@@ -2,13 +2,8 @@ export(
        "setCacheDir",
        "getCacheDir",
        "cacheSweaveDriver",
-       "showcache",
-       "getExprObjects",
-       "getExpressions",
-       "findExprLocals",
-       "buildDepTree"
+       "showcache"
        )
 
 import(utils)
-importFrom(codetools, "findGlobals")
 importFrom(digest, "digest")
