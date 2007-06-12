@@ -32,8 +32,8 @@ cacheREval <- function(Rfile, cache = TRUE) {
         exprTreeList
 }
 
-getExpressions <- function(file) {
-        fullpath <- normalizePath(file)
+getExpressions <- function(Rnwfile) {
+        fullpath <- normalizePath(Rnwfile)
         tmpdir <- tempdir()
         wd <- getwd()
         on.exit(setwd(wd))
