@@ -117,7 +117,7 @@ evalAndCache <- function(expr, exprFile, cache = TRUE) {
         keys <- ls(env, all.names = TRUE)
 
         if(length(keys) == 0 && !checkSideEffectList(expr)) {
-                message("expression has side effect: ", digest(expr))
+                ## message("expression has side effect: ", digest(expr))
                 updateSideEffectList(expr)
         }
         if(cache) 
@@ -153,6 +153,7 @@ updateSideEffectList <- function(expr) {
 initSideEffectList <- function() {
         file <- sideEffectListFile()
 
+        ## This is probably not necessary....
         if(!file.exists(file))
                 file.create(file)
         invisible(file)
