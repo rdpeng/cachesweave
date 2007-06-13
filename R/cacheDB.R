@@ -62,7 +62,9 @@ lazyLoad <- function(file, envir = parent.frame()) {
                 }, eval.env = environment(), assign.env = env)
         }
         keys <- names(index)
-        
+
+        if(is.null(keys))
+                stop("problem with lazy-load database index")        
         for(i in seq_along(index)) {
                 wrap(keys[i], index[i], envir)
         }
