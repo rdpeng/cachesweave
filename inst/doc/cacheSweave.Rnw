@@ -196,12 +196,12 @@ On the first evaluation the \code{cacheSweaveDriver} function does a
 number of computations in addition to the standard Sweave processing:
 \begin{enumerate}
 \item
-For each code chunk, a key-value database is created, by default, in
-the current working directory for storing data objects.  The database
-implementation comes from the \pkg{stashR} package.  The name of the
-database is derived from the name of the code chunk and an MD5
-digest~\citep{md5:1992} of the entire code chunk.  Users can change
-the location of the key-value database by calling the
+For each code chunk, a key-value database is created, by default, in a
+directory called \code{cache} for storing data objects.  The database
+implementation is a simple one implemented internally in the package.
+The name of the database is derived from the name of the code chunk
+and an MD5 digest~\citep{md5:1992} of the entire code chunk.  Users
+can change the location of the key-value database by calling the
 \code{setCacheDir} function and providing a path.
 \item
 Within each code chunk, there may be multiple expressions and the each
@@ -221,18 +221,16 @@ The objects created as a result of the evaluation are then stored
 separately in the database using their own names as keys.
 \item
 The objects are then lazy-loaded~\citep[see e.g.][]{rnews:ripley:2004}
-into the global environment via the \code{dbLazyLoad} function from
-the \pkg{filehash} package~\citep{peng:2006}.
+into the global environment via the internal \code{lazyLoad} function.
 \end{enumerate}
 \item
 A ``map file'' is created which is a text file that contains metadata
 about the code chunks and any resulting databases or figures produced.
 \end{enumerate}
 The result of running \code{Sweave} with the \code{cacheSweaveDriver}
-function is a \LaTeX\ file, a collection of \pkg{stashR} databases
-either in the current directory or in a directory specified by
-\code{setCacheDir}, and a map file which contains information about
-each of the code chunks.
+function is a \LaTeX\ file, a collection of databases in a directory
+specified by \code{setCacheDir}, and a map file which contains
+information about each of the code chunks.
 
 On a subsequent evaluation, the processing is slightly different.
 Namely, for each expression in a code chunk:
@@ -244,8 +242,7 @@ expression has been evaluated previously), the names of the objects
 associated with this expression are retrieved.
 \item
 Given the names of the objects associated with this expression, the
-objects are then lazy-loaded into the global environment via the
-\code{dbLazyLoad} function.
+objects are then lazy-loaded into the global environment.
 \end{enumerate}
 In this situation, the evaluation of a cached expression is replaced
 by the lazy-loading of the objects associated with that expression
@@ -303,13 +300,13 @@ updated after evaluating each code chunk.
 \item
 \code{runcode}, based on the \code{RweaveLatexRuncode} function in the
 \pkg{utils} package, this function executes code in each code chunk
-and saves objects to \pkg{stashR} databases. While much of the
-original code is retained, we replace the call to
-\code{RweaveEvalWithOpt} with our own \code{cacheSweaveEvalWithOpt}
-function, which handles the evaluation of the expression, creation of
-the \pkg{stashR} database, and the saving of objects to the database.
-We also add a call to the function \code{writeChunkMetadata} which writes
-out information to the map file.
+and saves objects to key-value databases. While much of the original
+code is retained, we replace the call to \code{RweaveEvalWithOpt} with
+our own \code{cacheSweaveEvalWithOpt} function, which handles the
+evaluation of the expression, creation of the key-value database, and
+the saving of objects to the database.  We also add a call to the
+function \code{writeChunkMetadata} which writes out information to the
+map file.
 \item
 \code{writedoc}, handles writing of output \LaTeX\ file; we import the
 \code{RweaveLatexWritedoc} function from \pkg{utils}.
@@ -363,16 +360,15 @@ object in the global environment.
 
 In order to handle the effects of functions like \code{source} the
 function \code{evalAndDumpToDB}, which evalutes an expression and
-saves the results to the \pkg{stashR} database, first obtains a
-character vector of the names of all the objects in the global
-environment.  After evaluating the expression in a temporary
-environment, a check is made to see if any new objects have been
-created or modified in the global environment.  If so, those objects
-are saved to the database as well as any objects that were created in
-the temporary environment.  Note that we currently make a special case
-of the global environment.  If the code being evaluated creates
-objects in some other environment, then \pkg{cacheSweave} will not be
-able to cache those objects.
+saves the results to the database, first obtains a character vector of
+the names of all the objects in the global environment.  After
+evaluating the expression in a temporary environment, a check is made
+to see if any new objects have been created or modified in the global
+environment.  If so, those objects are saved to the database as well
+as any objects that were created in the temporary environment.  Note
+that we currently make a special case of the global environment.  If
+the code being evaluated creates objects in some other environment,
+then \pkg{cacheSweave} will not be able to cache those objects.
 
 Another example of a function with side effects is the \code{plot}
 function (and related functions) from the \pkg{graphics} package.
