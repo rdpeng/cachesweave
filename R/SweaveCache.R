@@ -116,9 +116,9 @@ evalAndCache <- function(expr, exprFile, cache = TRUE) {
         ## Get newly assigned object names
         keys <- ls(env, all.names = TRUE)
 
-        if(length(keys) == 0 && !checkSideEffectList(expr)) {
+        if(length(keys) == 0 && !checkForceEvalList(expr)) {
                 ## message("expression has side effect: ", digest(expr))
-                updateSideEffectList(expr)
+                updateForceEvalList(expr)
         }
         if(cache) 
                 saveWithIndex(keys, exprFile, env)
@@ -139,10 +139,10 @@ makeChunkDirName <- function(cachedir, options) {
 ## Handling expressions with side effects
 
 sideEffectListFile <- function() {
-        file.path(getCacheDir(), ".SideEffectList")
+        file.path(getCacheDir(), ".ForceEvalList")
 }
 
-updateSideEffectList <- function(expr) {
+updateForceEvalList <- function(expr) {
         exprDigest <- digest(expr)
         con <- file(sideEffectListFile(), "a")
         on.exit(close(con))
@@ -150,7 +150,7 @@ updateSideEffectList <- function(expr) {
         writeLines(exprDigest, con)
 }
 
-initSideEffectList <- function() {
+initForceEvalList <- function() {
         file <- sideEffectListFile()
 
         ## This is probably not necessary....
@@ -159,7 +159,7 @@ initSideEffectList <- function() {
         invisible(file)
 }
 
-checkSideEffectList <- function(expr) {
+checkForceEvalList <- function(expr) {
         exprDigest <- digest(expr)
         exprList <- readLines(sideEffectListFile())
         exprDigest %in% exprList
@@ -178,7 +178,7 @@ cacheSweaveEvalWithOpt <- function (expr, options) {
         
         if(!options$eval)
                 return(res)
-        if(options$cache && !checkSideEffectList(expr)) {
+        if(options$cache && !checkForceEvalList(expr)) {
                 cachedir <- getCacheDir()
                 chunkdir <- makeChunkDirName(cachedir, options)
 
@@ -247,7 +247,7 @@ cacheSweaveSetup <- function(file, syntax,
         out[["mapFile"]] <- makeMapFileName(file)
         file.create(out[["mapFile"]])  ## Overwrite an existing file
 
-        initSideEffectList()
+        initForceEvalList()
         ## End additions [RDP]
 ######################################################################
         out
