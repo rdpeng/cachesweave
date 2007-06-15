@@ -17,19 +17,19 @@ Type 'q()' to quit R.
 
 > suppressMessages(library(cacheSweave))
 > 
-> infile <- system.file("example", "simpleRR.Rnw", package = "cacheSweave")
+> infile <- system.file("example", "simple.Rnw", package = "cacheSweave")
 > 
 > setCacheDir("cache")
 > 
 > Sweave(infile, driver = cacheSweaveDriver)
-Writing to file simpleRR.tex
+Writing to file simple.tex
 Processing code chunks ...
  1 : echo term verbatim (label=LoadPackages)
  2 : echo term verbatim (label=FitLinearModel)
  3 : echo term tex (label=CoefficientTable)
  4 : echo term verbatim pdf (label=LinearModelDiagnosticPlots)
 
-You can now run LaTeX on 'simpleRR.tex'
+You can now run LaTeX on 'simple.tex'
 > 
 > ls()
 [1] "airquality" "fit"        "infile"     "oldpar"    
@@ -40,5 +40,8 @@ You can now run LaTeX on 'simpleRR.tex'
 > 
 > dname <- dir("cache", full.names = TRUE)
 > dir(dname, recursive = TRUE)
-[1] "1a92865db91cad5463c99e83d570c353" "856743e03e5d0d595e4ee5c9ab86052e"
+[1] "005d17c96adb04b56a9a147fc0d6b9aa" "057d4ca96353dba6743e795f612d6296"
+[3] "0b86ee8061fec2830f6ae817c2529505" "1a92865db91cad5463c99e83d570c353"
+[5] "296efde7e07443c53862e2195b44e256" "856743e03e5d0d595e4ee5c9ab86052e"
+[7] "a12e1cfe319a08febb91dbb39aa29448" "d8fb50d655e488fa1b4cd86f10384aca"
 > 
