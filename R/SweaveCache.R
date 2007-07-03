@@ -55,8 +55,7 @@ copyEnv <- function(from) {
         env
 }
 
-## Check for new symbols in 'e2' that are not in 'e1'; doesn't check
-## for modified symbols.
+## Check for new symbols in 'e2' that are not in 'e1'
 
 isNewOrModified <- function(symbolnames, e1, e2) {
         sapply(symbolnames, function(s) {
