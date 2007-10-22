@@ -275,6 +275,7 @@ writeChunkMetadata <- function(object, chunk, options) {
                                cacheDB = dbName,
                                time = Sys.time())
         write.dcf(mapEntry, file = mapFile, append = TRUE, width = 2000)
+	cat("\n", file = mapFile, append = TRUE)
         options
 }
 
