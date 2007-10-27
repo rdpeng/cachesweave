@@ -8,4 +8,4 @@ LazyLoad: yes
 Author: Roger D. Peng <rpeng@jhsph.edu>
 Maintainer: Roger D. Peng <rpeng@jhsph.edu>
 Description: Tools for caching Sweave computations and storing them in key-value databases
-License: GNU GPL (version 2 or later)
+License: GPL (>= 2)
