@@ -116,7 +116,6 @@ evalAndCache <- function(expr, exprFile, cache = TRUE) {
         keys <- ls(env, all.names = TRUE)
 
         if(length(keys) == 0 && !checkForceEvalList(expr)) {
-                ## message("expression has side effect: ", digest(expr))
                 updateForceEvalList(expr)
         }
         if(cache) 
@@ -134,6 +133,19 @@ makeChunkDirName <- function(cachedir, options) {
                                   sep = "_"))
 }
 
+hash <- function(object) {
+	digest(object, algo = "sha1")
+}
+
+hashFile <- function(filename) {
+	stopifnot(length(filename) == 1)
+	digest(filename, algo = "sha1", file = TRUE)
+}
+
+hashExpr <- function(expr) {
+	expr <- deparse(expr, width.cutoff = 60)
+	hash(expr)
+}
 ################################################################################
 ## Handling expressions with side effects
 
@@ -142,7 +154,7 @@ sideEffectListFile <- function() {
 }
 
 updateForceEvalList <- function(expr) {
-        exprDigest <- digest(expr)
+        exprDigest <- hashExpr(expr)
         con <- file(sideEffectListFile(), "a")
         on.exit(close(con))
         
@@ -159,7 +171,7 @@ initForceEvalList <- function() {
 }
 
 checkForceEvalList <- function(expr) {
-        exprDigest <- digest(expr)
+        exprDigest <- hashExpr(expr)
         exprList <- readLines(sideEffectListFile())
         exprDigest %in% exprList
 }
@@ -183,7 +195,7 @@ cacheSweaveEvalWithOpt <- function (expr, options) {
 
                 if(!file.exists(chunkdir))
                         dir.create(chunkdir, recursive = TRUE)
-                exprDigest <- digest(expr, algo = "md5")
+                exprDigest <- hashExpr(expr)
                 exprFile <- exprFileName(cachedir, options, exprDigest)
 
                 ## If the current expression is not cached, then
@@ -265,7 +277,7 @@ makeMapFileName <- function(Rnwfile) {
 writeChunkMetadata <- function(object, chunk, options) {
         chunkprefix <- utils::RweaveChunkPrefix(options)
         chunkexps <- parse(text = chunk)
-        chunkDigest <- digest(chunkexps, algo = "md5")
+        chunkDigest <- hashExpr(chunkexps)
         options$chunkDigest <- chunkDigest
         
         ## If there's a data map file then write the chunk name and the
