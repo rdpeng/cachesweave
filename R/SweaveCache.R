@@ -141,6 +141,15 @@ mangleDigest <- function(x) {
         paste(".__", x, "__", sep = "")
 }
 
+hash <- function(object) {
+	digest(object, algo = "sha1")
+}
+
+hashExpr <- function(expr) {
+	expr <- deparse(expr, width.cutoff = 60)
+	hash(expr)
+}
+
 ################################################################################
 ## The major modification is here: Rather than evaluate expressions
 ## and leave them in the global environment, we evaluate them in a
@@ -169,7 +178,7 @@ cacheSweaveEvalWithOpt <- function (expr, options) {
                 ## Create database name from chunk label and MD5
                 ## digest
                 dbName <- makeChunkDatabaseName(cachedir, options, chunkDigest)
-                exprDigest <- mangleDigest(digest(expr))
+                exprDigest <- mangleDigest(hashExpr(expr))
 
                 ## Create 'stashR' database
                 db <- new("localDB", dir = dbName, name = basename(dbName))
@@ -244,8 +253,8 @@ makeMapFileName <- function(Rnwfile) {
 
 writeChunkMetadata <- function(object, chunk, options) {
         chunkprefix <- utils::RweaveChunkPrefix(options)
-        chunkexps <- parse(text = chunk)
-        chunkDigest <- digest(chunkexps)
+        chunkexps <- parse(text = chunk, srcfile = NULL)
+        chunkDigest <- hashExpr(chunkexps)
 
         options$chunkDigest <- chunkDigest
         
