@@ -130,6 +130,8 @@ evalAndDumpToDB <- function(db, expr, exprDigest) {
         ## Dump the values of the keys to the database
         dumpToDB(db, list = keys, envir = env)
 
+	if(length(keys) > 0)
+		copy2env(keys, env, globalenv())
         keys
 }
 
@@ -188,19 +190,21 @@ cacheSweaveEvalWithOpt <- function (expr, options) {
                 ## objects to the database.  Otherwise, just read the
                 ## vector of keys from the database
 
-                keys <- if(!dbExists(db, exprDigest)) 
-                        try({
+                if(!dbExists(db, exprDigest)) {
+                        keys <- try({
                                 evalAndDumpToDB(db, expr, exprDigest)
                         }, silent = TRUE)
-                else 
-                        dbFetch(db, exprDigest)
 
-                ## If there was an error then just return the
-                ## condition object and let Sweave deal with it.
-                if(inherits(keys, "try-error"))
-                        return(keys)
-
-                dbLazyLoad(db, globalenv(), keys)
+			## If there was an error then just return the
+			## condition object and let Sweave deal with it.
+			if(inherits(keys, "try-error"))
+				return(keys)
+		}
+		else {
+                        keys <- dbFetch(db, exprDigest)
+			dbLazyLoad(db, globalenv(), keys)
+		}
+		keys
         }
         else {
                 ## If caching is turned off, just evaluate the expression
