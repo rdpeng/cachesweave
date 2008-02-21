@@ -236,67 +236,16 @@ cacheSweaveSetup <- function(file, syntax,
         ## Add the (non-standard) options for code chunks with caching
         out$options[["cache"]] <- cache
 
-        ## We assume that each .Rnw file gets its own map file
-        out[["mapFile"]] <- makeMapFileName(file)
-        file.create(out[["mapFile"]])  ## Overwrite an existing file
-
         ## End additions [RDP]
 ######################################################################
         out
 }
 
 
-makeMapFileName <- function(Rnwfile) {
-        mapfile <- sub("\\.Rnw$", "\\.map", Rnwfile)
-
-        ## Don't clobber
-        if(identical(mapfile, Rnwfile))
-                mapfile <- paste(Rnwfile, "map", sep = ".")
-        mapfile
-}
-
-writeChunkMetadata <- function(object, chunk, options) {
-        chunkprefix <- utils::RweaveChunkPrefix(options)
-        chunkexps <- parse(text = chunk, srcfile = NULL)
-        chunkDigest <- hashExpr(chunkexps)
-
-        options$chunkDigest <- chunkDigest
-        
-        ## If there's a data map file then write the chunk name and the
-        ## directory of the chunk database to the map file (in DCF format)
-        dbName <- if(isTRUE(options$cache))
-                makeChunkDatabaseName(getCacheDir(), options, chunkDigest)
-        else
-                ""
-        ## Capture figure filenames; default to PDF, otherwise use EPS.
-        ## Filenames are <chunkprefix>.<extenstion>, which could change in
-        ## the future depending on Sweave implementation details
-        figname <- ""
-        if(options$fig && options$eval) {
-                figname <- if(options$pdf)
-                        paste(chunkprefix, "pdf", sep = ".")
-                else if(options$eps)
-                        paste(chunkprefix, "eps", sep = ".")
-                else
-                        ""
-        }
-        ## Write out map file entry
-        mapFile <- object[["mapFile"]]
-        mapEntry <- data.frame(chunk = options$label,
-                               chunkprefix = chunkprefix,
-                               fig = figname,
-                               cacheDB = dbName,
-                               time = Sys.time())
-        write.dcf(mapEntry, file = mapFile, append = TRUE, width = 2000)
-	cat("\n", file = mapFile, append = TRUE)
-        options
-}
-
 ## This function is essentially unchanged from the original Sweave
-## version, except I compute the digest of the entire chunk, write out
-## information to the map file, and use 'cacheSweaveEvalWithOpt'
-## instead.  Note that everything in this function operates at the
-## chunk level.  The code has been copied from R 2.5.0.
+## version, except I use 'cacheSweaveEvalWithOpt' instead.  Note that
+## everything in this function operates at the chunk level.  The code
+## has been copied from R 2.5.0.
 
 cacheSweaveRuncode <- function(object, chunk, options) {
         if(!(options$engine %in% c("R", "S"))){
@@ -343,11 +292,6 @@ cacheSweaveRuncode <- function(object, chunk, options) {
         ## parse entire chunk block
         chunkexps <- try(parse(text=chunk), silent=TRUE)
         RweaveTryStop(chunkexps, options)
-
-        ## Adding my own stuff here [RDP]
-        ## Add 'chunkDigest' to 'options'
-        options <- writeChunkMetadata(object, chunk, options)
-        ## End adding my own stuff [RDP]
 
         openSinput <- FALSE
         openSchunk <- FALSE
