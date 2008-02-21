@@ -293,6 +293,9 @@ cacheSweaveRuncode <- function(object, chunk, options) {
         chunkexps <- try(parse(text=chunk), silent=TRUE)
         RweaveTryStop(chunkexps, options)
 
+        ## Additions here [RDP]
+        options$chunkDigest <- hashExpr(parse(text = chunk, srcfile = NULL))
+
         openSinput <- FALSE
         openSchunk <- FALSE
 
