@@ -1,6 +1,6 @@
 
-R version 2.5.0 (2007-04-23)
-Copyright (C) 2007 The R Foundation for Statistical Computing
+R version 2.11.0 Under development (unstable) (--)
+Copyright (C)  The R Foundation for Statistical Computing
 ISBN 3-900051-07-0
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
@@ -42,8 +42,8 @@ You can now run LaTeX on 'simpleRR.tex'
 > suppressMessages(library(stashR))
 > db <- new("localDB", dir = dname, name = "cacheDB")
 > dbList(db)
-[1] ".__856743e03e5d0d595e4ee5c9ab86052e__"
-[2] "airquality"                           
-[3] ".__1a92865db91cad5463c99e83d570c353__"
-[4] "fit"                                  
+[1] ".__9be9118a4c6569bc6634e5704285e3e1e3b4df98__"
+[2] "airquality"                                   
+[3] ".__6f3a93e70009c1b4dd580be9c30cac4adf828151__"
+[4] "fit"                                          
 > 
