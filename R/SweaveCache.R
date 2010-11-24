@@ -266,8 +266,8 @@ cacheSweaveRuncode <- function(object, chunk, options) {
         chunkprefix <- RweaveChunkPrefix(options)
 
         if(options$split){
-                ## [x][[1]] avoids partial matching of x
-                chunkout <- object$chunkout[chunkprefix][[1]]
+                ## [x][[1L]] avoids partial matching of x
+                chunkout <- object$chunkout[chunkprefix][[1L]]
                 if(is.null(chunkout)){
                         chunkout <- file(paste(chunkprefix, "tex", sep="."), "w")
                         if(!is.null(options$label))
@@ -277,83 +277,118 @@ cacheSweaveRuncode <- function(object, chunk, options) {
         else
                 chunkout <- object$output
 
-        saveopts <- options(keep.source=options$keep.source)
-        on.exit(options(saveopts))
-
+        srcfile <- object$srcfile
         SweaveHooks(options, run=TRUE)
 
-        ## parse entire chunk block
-        chunkexps <- try(parse(text=chunk), silent=TRUE)
+        ## Note that we edit the error message below, so change both
+        ## if you change this line:
+        chunkexps <- try(parse(text=chunk, srcfile=srcfile), silent=TRUE)
+
+        if (inherits(chunkexps, "try-error"))
+                chunkexps[1L] <- sub(" parse(text = chunk, srcfile = srcfile) : \n ",
+                                     "", chunkexps[1L], fixed = TRUE)
+
         RweaveTryStop(chunkexps, options)
+
+        ## A couple of functions used below...
+
+        putSinput <- function(dce){
+                if(!openSinput){
+                        if(!openSchunk){
+                                cat("\\begin{Schunk}\n",
+                                    file=chunkout, append=TRUE)
+                                linesout[thisline + 1L] <<- srcline
+                                thisline <<- thisline + 1L
+                                openSchunk <<- TRUE
+                        }
+                        cat("\\begin{Sinput}",
+                            file=chunkout, append=TRUE)
+                        openSinput <<- TRUE
+                }
+                cat("\n", paste(getOption("prompt"), dce[1L:leading], sep="", collapse="\n"),
+                    file=chunkout, append=TRUE, sep="")
+                if (length(dce) > leading)
+                        cat("\n", paste(getOption("continue"), dce[-(1L:leading)], sep="", collapse="\n"),
+                            file=chunkout, append=TRUE, sep="")
+                linesout[thisline + seq_along(dce)] <<- srcline
+                thisline <<- thisline + length(dce)
+        }	  
+        
+        trySrcLines <- function(srcfile, showfrom, showto, ce) {
+                lines <- try(suppressWarnings(getSrcLines(srcfile, showfrom, showto)), silent=TRUE)
+                if (inherits(lines, "try-error")) {
+                        if (is.null(ce)) lines <- character(0)
+                        else lines <- deparse(ce, width.cutoff=0.75*getOption("width"))
+                }
+                lines
+        }          
+
+        chunkregexp <- "(.*)#from line#([[:digit:]]+)#"
 
         ## Additions here [RDP]
         options$chunkDigest <- hashExpr(parse(text = chunk, srcfile = NULL))
-
+        ## [RDP]
+        
         openSinput <- FALSE
         openSchunk <- FALSE
 
-        if(length(chunkexps)==0)
-                return(object)
-
         srclines <- attr(chunk, "srclines")
-        linesout <- integer(0)
-        srcline <- srclines[1]
-
+        linesout <- integer(0L) # maintains concordance
+        srcline <- srclines[1L] # current input line
+        thisline <- 0L          # current output line
+        lastshown <- srcline    # last line already displayed;
+                                        # at this point it's the <<>>= line
+        leading <- 1L		  # How many lines get the user prompt
+        
         srcrefs <- attr(chunkexps, "srcref")
-        if (options$expand)
-                lastshown <- 0
-        else
-                lastshown <- srcline - 1
-        thisline <- 0
-        for(nce in 1:length(chunkexps))
-        {
-                ce <- chunkexps[[nce]]
-                if (nce <= length(srcrefs) && !is.null(srcref <- srcrefs[[nce]])) {
-                        if (options$expand) {
-                                srcfile <- attr(srcref, "srcfile")
-                                showfrom <- srcref[1]
-                                showto <- srcref[3]
+        
+        for(nce in seq_along(chunkexps)) {
+ 		ce <- chunkexps[[nce]]
+                if (options$keep.source && nce <= length(srcrefs) && !is.null(srcref <- srcrefs[[nce]])) {
+                        srcfile <- attr(srcref, "srcfile")
+                        showfrom <- srcref[1L]
+                        showto <- srcref[3L]
+                        refline <- srcfile$refline
+                        if (is.null(refline)) {
+                                if (grepl(chunkregexp, srcfile$filename)) {
+                                        refline <- as.integer(sub(chunkregexp, "\\2", srcfile$filename))
+                                        srcfile$filename <- sub(chunkregexp, "\\1", srcfile$filename)
+                                } else 
+                                refline <- NA
+                                srcfile$refline <- refline
+                        }
+                        if (!options$expand && !is.na(refline)) 
+                                showfrom <- showto <- refline
+                    	
+                        if (!is.na(refline) || is.na(lastshown)) { 
+                                ## We expanded a named chunk for this
+                                ## expression or the previous one
+                                dce <- trySrcLines(srcfile, showfrom, showto, ce)
+                                leading <- 1L
+                                if (!is.na(refline))
+                                        lastshown <- NA
+                                else
+                                        lastshown <- showto
                         } else {
-                                srcfile <- object$srcfile
-                                showfrom <- srclines[srcref[1]]
-                                showto <- srclines[srcref[3]]
+                                dce <- trySrcLines(srcfile, lastshown+1L, showto, ce)
+                                leading <- showfrom-lastshown
+                                lastshown <- showto
                         }
-                        dce <- getSrcLines(srcfile, lastshown+1, showto)
-                        leading <- showfrom-lastshown
-                        lastshown <- showto
-                        srcline <- srclines[srcref[3]]
-                        while (length(dce) && length(grep("^[ \\t]*$", dce[1]))) {
-                                dce <- dce[-1]
-                                leading <- leading - 1
+                        srcline <- showto
+                        while (length(dce) && length(grep("^[[:blank:]]*$", dce[1L]))) {
+                                dce <- dce[-1L]
+                                leading <- leading - 1L
                         }
-                } else {
+	    	} else {
                         dce <- deparse(ce, width.cutoff=0.75*getOption("width"))
-                        leading <- 1
+                        leading <- 1L
                 }
                 if(object$debug)
                         cat("\nRnw> ", paste(dce, collapse="\n+  "),"\n")
-                if(options$echo && length(dce)){
-                        if(!openSinput){
-                                if(!openSchunk){
-                                        cat("\\begin{Schunk}\n",
-                                            file=chunkout, append=TRUE)
-                                        linesout[thisline + 1] <- srcline
-                                        thisline <- thisline + 1
-                                        openSchunk <- TRUE
-                                }
-                                cat("\\begin{Sinput}",
-                                    file=chunkout, append=TRUE)
-                                openSinput <- TRUE
-                        }
-                        cat("\n", paste(getOption("prompt"), dce[1:leading], sep="", collapse="\n"),
-                            file=chunkout, append=TRUE, sep="")
-                        if (length(dce) > leading)
-                                cat("\n", paste(getOption("continue"), dce[-(1:leading)], sep="", collapse="\n"),
-                                    file=chunkout, append=TRUE, sep="")
-                        linesout[thisline + 1:length(dce)] <- srcline
-                        thisline <- thisline + length(dce)
-                }
-
+                
+                if(options$echo && length(dce))
+                        putSinput(dce)
+                
                 ## tmpcon <- textConnection("output", "w")
                 ## avoid the limitations (and overhead) of output text connections
                 tmpcon <- file()
@@ -369,33 +404,33 @@ cacheSweaveRuncode <- function(object, chunk, options) {
                 output <- readLines(tmpcon)
                 close(tmpcon)
                 ## delete empty output
-                if(length(output)==1 & output[1]=="") output <- NULL
+                if(length(output) == 1L & output[1L] == "") output <- NULL
 
                 RweaveTryStop(err, options)
 
                 if(object$debug)
                         cat(paste(output, collapse="\n"))
 
-                if(length(output)>0 & (options$results != "hide")){
+                if(length(output) & (options$results != "hide")){
 
                         if(openSinput){
                                 cat("\n\\end{Sinput}\n", file=chunkout, append=TRUE)
-                                linesout[thisline + 1:2] <- srcline
-                                thisline <- thisline + 2
+                                linesout[thisline + 1L:2L] <- srcline
+                                thisline <- thisline + 2L
                                 openSinput <- FALSE
                         }
                         if(options$results=="verbatim"){
                                 if(!openSchunk){
                                         cat("\\begin{Schunk}\n",
                                             file=chunkout, append=TRUE)
-                                        linesout[thisline + 1] <- srcline
-                                        thisline <- thisline + 1
+                                        linesout[thisline + 1L] <- srcline
+                                        thisline <- thisline + 1L
                                         openSchunk <- TRUE
                                 }
                                 cat("\\begin{Soutput}\n",
                                     file=chunkout, append=TRUE)
-                                linesout[thisline + 1] <- srcline
-                                thisline <- thisline + 1
+                                linesout[thisline + 1L] <- srcline
+                                thisline <- thisline + 1L
                         }
 
                         output <- paste(output,collapse="\n")
@@ -406,9 +441,9 @@ cacheSweaveRuncode <- function(object, chunk, options) {
                                         output <- sub("\n[[:space:]]*\n", "\n", output)
                         }
                         cat(output, file=chunkout, append=TRUE)
-                        count <- sum(strsplit(output, NULL)[[1]] == "\n")
-                        if (count > 0) {
-                                linesout[thisline + 1:count] <- srcline
+                        count <- sum(strsplit(output, NULL)[[1L]] == "\n")
+                        if (count > 0L) {
+                                linesout[thisline + 1L:count] <- srcline
                                 thisline <- thisline + count
                         }
 
@@ -416,22 +451,29 @@ cacheSweaveRuncode <- function(object, chunk, options) {
 
                         if(options$results=="verbatim"){
                                 cat("\n\\end{Soutput}\n", file=chunkout, append=TRUE)
-                                linesout[thisline + 1:2] <- srcline
-                                thisline <- thisline + 2
+                                linesout[thisline + 1L:2L] <- srcline
+                                thisline <- thisline + 2L
                         }
                 }
         }
 
+        if(options$echo && options$keep.source 
+           && !is.na(lastshown) 
+           && lastshown < (showto <- srclines[length(srclines)])) {
+                dce <- trySrcLines(srcfile, lastshown+1L, showto, NULL)
+                putSinput(dce)
+        }
+        
         if(openSinput){
                 cat("\n\\end{Sinput}\n", file=chunkout, append=TRUE)
-                linesout[thisline + 1:2] <- srcline
-                thisline <- thisline + 2
+                linesout[thisline + 1L:2L] <- srcline
+                thisline <- thisline + 2L
         }
 
         if(openSchunk){
                 cat("\\end{Schunk}\n", file=chunkout, append=TRUE)
-                linesout[thisline + 1] <- srcline
-                thisline <- thisline + 1
+                linesout[thisline + 1L] <- srcline
+                thisline <- thisline + 1L
         }
 
         if(is.null(options$label) & options$split)
@@ -440,8 +482,8 @@ cacheSweaveRuncode <- function(object, chunk, options) {
         if(options$split & options$include){
                 cat("\\input{", chunkprefix, "}\n", sep="",
                     file=object$output, append=TRUE)
-                linesout[thisline + 1] <- srcline
-                thisline <- thisline + 1
+                linesout[thisline + 1L] <- srcline
+                thisline <- thisline + 1L
         }
 
         if(options$fig && options$eval){
@@ -469,13 +511,16 @@ cacheSweaveRuncode <- function(object, chunk, options) {
                 if(options$include) {
                         cat("\\includegraphics{", chunkprefix, "}\n", sep="",
                             file=object$output, append=TRUE)
-                        linesout[thisline + 1] <- srcline
-                        thisline <- thisline + 1
+                        linesout[thisline + 1L] <- srcline
+                        thisline <- thisline + 1L
                 }
         }
         object$linesout <- c(object$linesout, linesout)
         return(object)
 }
+
+
+
 
 
 
