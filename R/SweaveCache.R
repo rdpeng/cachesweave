@@ -87,7 +87,7 @@ isNewOrModified <- function(specials, e1, e2) {
 ## If 'source()' was used, there may be new symbols in the global
 ## environment, unless 'source(local = TRUE)' was used.  Also applies
 ## for 'set.seed()'.
-        
+
 checkNewSymbols <- function(e1, e2) {
         if(identical(e1, e2))
                 return(character(0))
@@ -209,8 +209,7 @@ cacheSweaveEvalWithOpt <- function (expr, options) {
         else {
                 ## If caching is turned off, just evaluate the expression
                 ## in the global environment
-                res <- try(.Internal(eval.with.vis(expr, .GlobalEnv,
-                                                   baseenv())),
+                res <- try(withVisible(eval(expr, .GlobalEnv)),
                            silent=TRUE)
                 if(inherits(res, "try-error"))
                         return(res)
