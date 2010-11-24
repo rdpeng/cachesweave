@@ -220,15 +220,9 @@ cacheSweaveEvalWithOpt <- function (expr, options) {
 }
 
 ## Need to add the 'cache', 'filename' option to the list
-cacheSweaveSetup <- function(file, syntax,
-                             output=NULL, quiet=FALSE, debug=FALSE, echo=TRUE,
-                             eval=TRUE, split=FALSE, stylepath=TRUE, pdf=TRUE,
-                             eps=TRUE, cache = FALSE) {
+cacheSweaveSetup <- function(..., cache = FALSE) {
 
-        out <- utils::RweaveLatexSetup(file, syntax, output=NULL, quiet=FALSE,
-                                       debug=FALSE, echo=TRUE, eval=TRUE,
-                                       split=FALSE, stylepath=TRUE, pdf=TRUE,
-                                       eps=TRUE)
+        out <- utils::RweaveLatexSetup(...)
 
 ######################################################################
         ## Additions here [RDP]
