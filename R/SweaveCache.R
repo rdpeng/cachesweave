@@ -177,45 +177,114 @@ hashExpr <- function(expr) {
 ## evaluation is skipped.
 ################################################################################
 
-cacheSweaveEvalWithOpt <- function (expr, options) {
+cacheSweaveEvalWithOpt <- function (expr, options, tmpcon) {
         chunkDigest <- options$chunkDigest
         
         ## 'expr' is a single expression, so something like 'a <- 1'
         res <- NULL
 
         if(!options$eval)
-                return(res)
+                return(list(res=res, updated=F))
+
+	# tabenius
+	cachedir <- getCacheDir()
+	## Create database name from chunk label and MD5
+	## digest
+	dbName <- makeChunkDatabaseName(cachedir, options, chunkDigest)
+	exprDigest <- mangleDigest(hashExpr(expr))
+
+	## Create 'stashR' database
+	db <- new("localDB", dir = dbName, name = basename(dbName))
+
+	trace <- options$trace & as.logical(options$trace)
+
+	chunkName <- metaChunkName(options)
+	dbMetaName <- makeMetaDatabaseName(cachedir)
+	dbMeta <- new("localDB", dir = dbMetaName, name = basename(dbMetaName))
+	creationTimes <- metaGetCreationTime(dbMeta)
+	fresh = dbExists(db, exprDigest)
+
+	# NOTE: Currently doesn't cache un-labeled chunks
+	if (!is.null(creationTimes[[chunkName]])) {
+		chunkCreationTime <- creationTimes[[chunkName]]
+		if(trace) cat("%",chunkName,"has creationTime:",format.Date(chunkCreationTime),"\n")
+	} else
+		chunkCreationTime <- NULL
+
+	flush(tmpcon)
+
+	fresh = fresh & !is.null(chunkCreationTime)
+	if (!is.null(options$dependson)){
+		depends <- unlist(strsplit(options$dependson,';'))
+		if (fresh)
+			for (dep in depends) {
+				dirty1 = is.null(creationTimes[[dep]])
+			        if(!dirty1)
+					dirty1 = creationTimes[[dep]] > chunkCreationTime
+				if (trace)
+					if (dirty1)
+						cat("% in",chunkName,"dependency",dep,"is newer\n")
+					else
+						cat("% in",chunkName,"dependency",dep,"is older\n")
+				fresh = fresh & !dirty1
+			}
+	} else {
+		depends = NULL
+	}
+	if (trace)
+		if (fresh) {
+			cat("%",chunkName,"is fresh\n")
+		} else {
+			cat("%",chunkName,"is dirty\n")
+		}
+	updated <- FALSE
+	##### /tabenius
+
         if(options$cache) {
-                cachedir <- getCacheDir()
-
-                ## Create database name from chunk label and MD5
-                ## digest
-                dbName <- makeChunkDatabaseName(cachedir, options, chunkDigest)
-                exprDigest <- mangleDigest(hashExpr(expr))
-
-                ## Create 'stashR' database
-                db <- new("localDB", dir = dbName, name = basename(dbName))
-
                 ## If the current expression is not cached, then
                 ## evaluate the expression and dump the resulting
                 ## objects to the database.  Otherwise, just read the
                 ## vector of keys from the database
 
-                if(!dbExists(db, exprDigest)) {
+                if(!fresh) {
                         keys <- try({
-                                evalAndDumpToDB(db, expr, exprDigest)
+                                evalAndDumpToDB(db, expr, exprDigest, chunkDigest)
                         }, silent = TRUE)
+
+			if(trace) { # tabenius
+				out <- "% evaluating and storing"
+				out <- paste(out,chunkName)
+				if (!is.null(depends)) {
+					out <- paste(out," depends (",sep='')
+					out <- paste(out, paste(depends,collapse=', '),sep='')
+					out <- paste(out,")",sep='')
+				}
+				out <- paste(out,Sys.time())
+				cat(out,"\n")
+			}
+			#### /tabenius
 
 			## If there was an error then just return the
 			## condition object and let Sweave deal with it.
 			if(inherits(keys, "try-error"))
-				return(keys)
+				return(list(res=keys,updated=F))
+
+			updated <- TRUE # tabenius
 		}
 		else {
-                        keys <- dbFetch(db, exprDigest)
+       			if(trace) { # tabenius
+				cat("% fetching object",chunkName)
+			}
+			keys <- dbFetch(db, exprDigest)
 			dbLazyLoad(db, globalenv(), keys)
+       			if(trace) { # tabenius
+			  if (!is.null(depends)) {
+			    cat(" depending on",paste(depends,collapse=', '))
+			  }
+			  cat("\n")
+			}
 		}
-		keys
+		res <- keys
         }
         else {
                 ## If caching is turned off, just evaluate the expression
