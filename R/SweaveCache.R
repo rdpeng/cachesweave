@@ -26,7 +26,7 @@
 cacheSweaveDriver <- function() {
         list(
              setup = cacheSweaveSetup,
-             runcode = cacheSweaveRuncode,
+             runcode = makeRweaveLatexCodeRunner(cacheSweaveEvalWithOpt),
              writedoc = utils::RweaveLatexWritedoc,
              finish = utils::RweaveLatexFinish,
              checkopts = utils::RweaveLatexOptions
@@ -167,7 +167,8 @@ hashExpr <- function(expr) {
 ################################################################################
 
 cacheSweaveEvalWithOpt <- function (expr, options) {
-        chunkDigest <- options$chunkDigest
+        chunk <- get("chunk", parent.frame())
+        chunkDigest <- hashExpr(parse(text = chunk, srcfile = NULL))
         
         ## 'expr' is a single expression, so something like 'a <- 1'
         res <- NULL
