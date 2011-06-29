@@ -292,22 +292,54 @@ cacheSweaveEvalWithOpt <- function (expr, options, tmpcon) {
                 res <- try(withVisible(eval(expr, .GlobalEnv)),
                            silent=TRUE)
                 if(inherits(res, "try-error"))
-                        return(res)
+                        return(list(res=res,updated=F))
                 if(options$print | (options$term & res$visible))
                         print(res$value)
         }
-        res
+        list(res=res,updated=updated)
+}
+
+makeMetaDatabaseName <- function(cachedir) {
+	file.path(cachedir, "cacheSweaveStorage_metadata")
+}
+
+metaGetCreationTime <- function(dbMeta) {
+	if(dbExists(dbMeta,"creationTimes")) {
+		creationTimes <- dbFetch(dbMeta, "creationTimes")
+	} else {
+		creationTimes <- list()
+	}
+	creationTimes
+}
+
+metaSetCreationTime <- function(label) {
+	cachedir <- getCacheDir()
+	dbMetaName <- makeMetaDatabaseName(cachedir)
+	dbMeta <- new("localDB", dir = dbMetaName, name = basename(dbMetaName))
+	creationTimes <- metaGetCreationTime(dbMeta)
+	creationTimes[[label]] =Sys.time()
+	dbInsert(dbMeta, "creationTimes", creationTimes)
+	creationTimes
+}
+metaChunkName <- function(options) {
+	if(!is.null(options$label))
+		chunkName <- options$label
+	else
+		chunkName <- paste("c",options$chunkDigest,sep='')
+	#cat("(chunkname=",chunkName))
+	chunkName
 }
 
 ## Need to add the 'cache', 'filename' option to the list
-cacheSweaveSetup <- function(..., cache = FALSE) {
-
+cacheSweaveSetup <- function(..., cache = FALSE, trace=F, dependson=NULL) {
         out <- utils::RweaveLatexSetup(...)
 
 ######################################################################
         ## Additions here [RDP]
         ## Add the (non-standard) options for code chunks with caching
         out$options[["cache"]] <- cache
+	out$options[["dependson"]] <- dependson # tabenius
+	out$options[["trace"]] <- trace         # tabenius
 
         ## End additions [RDP]
 ######################################################################
@@ -321,6 +353,7 @@ cacheSweaveSetup <- function(..., cache = FALSE) {
 ## has been copied from R 2.5.0.
 
 cacheSweaveRuncode <- function(object, chunk, options) {
+	updated <- F
         if(!(options$engine %in% c("R", "S"))){
                 return(object)
         }
@@ -338,9 +371,6 @@ cacheSweaveRuncode <- function(object, chunk, options) {
                                 if(options$pdf) cat(" pdf")
                         }
                 }
-                if(!is.null(options$label))
-                        cat(" (label=", options$label, ")", sep="")
-                cat("\n")
         }
 
         chunkprefix <- RweaveChunkPrefix(options)
@@ -476,7 +506,11 @@ cacheSweaveRuncode <- function(object, chunk, options) {
                 err <- NULL
 
                 ## [RDP] change this line to use my EvalWithOpt function
-                if(options$eval) err <- cacheSweaveEvalWithOpt(ce, options)
+                if(options$eval) {
+			res <- cacheSweaveEvalWithOpt(ce, options, tmpcon)
+			err <- res$err
+			updated <- updated | res$updated
+		}
                 ## [RDP] end change
 
                 cat("\n") # make sure final line is complete
@@ -596,6 +630,16 @@ cacheSweaveRuncode <- function(object, chunk, options) {
                 }
         }
         object$linesout <- c(object$linesout, linesout)
+	# tabenius
+	if(!is.null(options$label))
+		cat(" (label=", options$label, ")", sep="")
+	if(updated) {
+		chunkName <- metaChunkName(options)
+		metaSetCreationTime(chunkName)
+		cat(" (stored)")
+	}
+	cat("\n")
+	# /tabenius
         return(object)
 }
 
