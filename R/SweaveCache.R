@@ -20,8 +20,7 @@
 ######################################################################
 ## Taken/adapted from Sweave code by Friedrich Leisch, along the lines
 ## of 'weaver' from Bioconductor, but more naive and we use 'stashR'
-## databases for the backend.  We also don't check dependencies on
-## previous chunks.
+## databases for the backend.  
 
 cacheSweaveDriver <- function() {
         list(
@@ -29,9 +28,18 @@ cacheSweaveDriver <- function() {
              runcode = cacheSweaveRuncode,
              writedoc = utils::RweaveLatexWritedoc,
              finish = utils::RweaveLatexFinish,
-             checkopts = utils::RweaveLatexOptions
+             checkopts = cacheRweaveLatexOptions
              )
 }
+# tabenius
+cacheRweaveLatexOptions <- function(options) {
+	moreoptions <- c('dependson')
+	oldoptions <- options[setdiff(names(options),moreoptions)]
+	newoptions <- options[intersect(names(options),moreoptions)]
+	Rweaveoptions <- utils::RweaveLatexOptions(oldoptions)
+	options <- unlist(list(Rweaveoptions,newoptions),recursive=F)
+}
+
 
 
 ######################################################################
