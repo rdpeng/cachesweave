@@ -31,7 +31,7 @@ cacheSweaveDriver <- function() {
              checkopts = cacheRweaveLatexOptions
              )
 }
-# tabenius
+
 cacheRweaveLatexOptions <- function(options) {
 	moreoptions <- c('dependson')
 	oldoptions <- options[setdiff(names(options),moreoptions)]
@@ -115,7 +115,7 @@ checkNewSymbols <- function(e1, e2) {
 ## with a digest of the expression.  Return a character vector of keys
 ## that were dumped
 
-evalAndDumpToDB <- function(db, expr, exprDigest, chunkDigest) { #tabenius
+evalAndDumpToDB <- function(db, expr, exprDigest, chunkDigest) {
         env <- new.env(parent = globalenv())
         global1 <- copyEnv(globalenv())
         
@@ -130,9 +130,9 @@ evalAndDumpToDB <- function(db, expr, exprDigest, chunkDigest) { #tabenius
 
         ## Get newly assigned object names
         keys <- ls(env, all.names = TRUE)
-	newkey <- paste('.cacheSweave.creation.time.',chunkDigest,sep='') # tabenius
-	keys <- c(keys, newkey)                                           # tabenius 
-	assign(newkey, Sys.time(), envir=env)                             # tabenius
+	newkey <- paste('.cacheSweave.creation.time.',chunkDigest,sep='')
+	keys <- c(keys, newkey)
+	assign(newkey, Sys.time(), envir=env)
 
         ## Associate the newly created keys with the digest of
         ## the expression
@@ -185,9 +185,8 @@ cacheSweaveEvalWithOpt <- function (expr, options) {
         res <- NULL
 
         if(!options$eval)
-                return(list(res=res, updated=F))
+                return(list(res = res, updated = FALSE))
 
-	# tabenius
 	cachedir <- getCacheDir()
 	## Create database name from chunk label and MD5
 	## digest
@@ -232,14 +231,14 @@ cacheSweaveEvalWithOpt <- function (expr, options) {
 	} else {
 		depends = NULL
 	}
-	if (trace)
+	if (trace) {
 		if (fresh) {
 			cat("%",chunkName,"is fresh\n")
 		} else {
 			cat("%",chunkName,"is dirty\n")
 		}
+        }
 	updated <- FALSE
-	##### /tabenius
 
         if(options$cache) {
                 ## If the current expression is not cached, then
@@ -251,8 +250,7 @@ cacheSweaveEvalWithOpt <- function (expr, options) {
                         keys <- try({
                                 evalAndDumpToDB(db, expr, exprDigest, chunkDigest)
                         }, silent = TRUE)
-
-			if(trace) { # tabenius
+			if(trace) {
 				out <- "% evaluating and storing"
 				out <- paste(out,chunkName)
 				if (!is.null(depends)) {
@@ -263,26 +261,24 @@ cacheSweaveEvalWithOpt <- function (expr, options) {
 				out <- paste(out,Sys.time())
 				cat(out,"\n")
 			}
-			#### /tabenius
 
 			## If there was an error then just return the
 			## condition object and let Sweave deal with it.
 			if(inherits(keys, "try-error"))
-				return(list(res=keys,updated=F))
-
-			updated <- TRUE # tabenius
+				return(list(res = keys, updated = FALSE))
+			updated <- TRUE
 		}
 		else {
-       			if(trace) { # tabenius
+       			if(trace) {
 				cat("% fetching object",chunkName)
 			}
 			keys <- dbFetch(db, exprDigest)
 			dbLazyLoad(db, globalenv(), keys)
-       			if(trace) { # tabenius
-			  if (!is.null(depends)) {
-			    cat(" depending on",paste(depends,collapse=', '))
-			  }
-			  cat("\n")
+       			if(trace) {
+                                if (!is.null(depends)) {
+                                        cat(" depending on",paste(depends,collapse=', '))
+                                }
+                                cat("\n")
 			}
 		}
 		res <- keys
@@ -330,15 +326,10 @@ metaChunkName <- function(options) {
 cacheSweaveSetup <- function(..., cache = FALSE, trace=F, dependson=NULL) {
         out <- utils::RweaveLatexSetup(...)
 
-######################################################################
-        ## Additions here [RDP]
         ## Add the (non-standard) options for code chunks with caching
         out$options[["cache"]] <- cache
-	out$options[["dependson"]] <- dependson # tabenius
-	out$options[["trace"]] <- trace         # tabenius
-
-        ## End additions [RDP]
-######################################################################
+	out$options[["dependson"]] <- dependson
+	out$options[["trace"]] <- trace
         out
 }
 
