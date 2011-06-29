@@ -153,11 +153,11 @@ hashExpr <- function(expr) {
 }
 
 ################################################################################
-## The major modification is here: Rather than evaluate expressions
-## and leave them in the global environment, we evaluate them in a
-## local environment (that has globalenv() as the parent) and then
-## store the assignments in a 'stashR' database.  If an expression
-## does not give rise to new R objects, then nothing is saved.
+## The major addition is here: Rather than evaluate expressions and
+## leave them in the global environment, we evaluate them in a local
+## environment (that has globalenv() as the parent) and then store the
+## assignments in a 'stashR' database.  If an expression does not give
+## rise to new R objects, then nothing is saved.
 ##
 ## For each expression ('expr'), we compute a digest and associate
 ## with that digest the names of the objects that were created by
