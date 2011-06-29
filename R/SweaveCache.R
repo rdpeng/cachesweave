@@ -209,12 +209,7 @@ cacheSweaveEvalWithOpt <- function (expr, options) {
         else {
                 ## If caching is turned off, just evaluate the expression
                 ## in the global environment
-                res <- try(withVisible(eval(expr, .GlobalEnv)),
-                           silent=TRUE)
-                if(inherits(res, "try-error"))
-                        return(res)
-                if(options$print | (options$term & res$visible))
-                        print(res$value)
+                res <- utils::RweaveEvalWithOpt(expr, options)
         }
         res
 }
