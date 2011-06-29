@@ -1,7 +1,8 @@
 
-R version 2.11.0 Under development (unstable) (--)
-Copyright (C)  The R Foundation for Statistical Computing
+R version 2.13.0 Patched (2011-06-27 r56229)
+Copyright (C) 2011 The R Foundation for Statistical Computing
 ISBN 3-900051-07-0
+Platform: x86_64-apple-darwin10.7.0 (64-bit)
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
 You are welcome to redistribute it under certain conditions.
@@ -23,13 +24,13 @@ Type 'q()' to quit R.
 > 
 > Sweave(infile, driver = cacheSweaveDriver)
 Writing to file simpleRR.tex
-Processing code chunks ...
- 1 : echo term verbatim (label=LoadPackages)
- 2 : echo term verbatim (label=FitLinearModel)
- 3 : echo term tex (label=CoefficientTable)
- 4 : echo term verbatim pdf (label=LinearModelDiagnosticPlots)
+Processing code chunks with options ...
+ 1 : echo term verbatim (label = LoadPackages)
+ 2 : echo term verbatim (label = FitLinearModel)
+ 3 : echo term tex (label = CoefficientTable)
+ 4 : echo term verbatim pdf (label = LinearModelDiagnosticPlots)
 
-You can now run LaTeX on 'simpleRR.tex'
+You can now run (pdf)latex on 'simpleRR.tex'
 > 
 > ls()
 [1] "airquality" "fit"        "infile"     "oldpar"    
