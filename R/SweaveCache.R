@@ -115,7 +115,7 @@ checkNewSymbols <- function(e1, e2) {
 ## with a digest of the expression.  Return a character vector of keys
 ## that were dumped
 
-evalAndDumpToDB <- function(db, expr, exprDigest) {
+evalAndDumpToDB <- function(db, expr, exprDigest, chunkDigest) { #tabenius
         env <- new.env(parent = globalenv())
         global1 <- copyEnv(globalenv())
         
@@ -130,6 +130,9 @@ evalAndDumpToDB <- function(db, expr, exprDigest) {
 
         ## Get newly assigned object names
         keys <- ls(env, all.names = TRUE)
+	newkey <- paste('.cacheSweave.creation.time.',chunkDigest,sep='') # tabenius
+	keys <- c(keys, newkey)                                           # tabenius 
+	assign(newkey, Sys.time(), envir=env)                             # tabenius
 
         ## Associate the newly created keys with the digest of
         ## the expression
@@ -144,7 +147,7 @@ evalAndDumpToDB <- function(db, expr, exprDigest) {
 }
 
 makeChunkDatabaseName <- function(cachedir, options, chunkDigest) {
-        file.path(cachedir, paste(options$label, chunkDigest, sep = "_"))
+        file.path(cachedir, paste('cacheSweaveStorage',options$label, chunkDigest, sep = "_"))
 }
 
 mangleDigest <- function(x) {
