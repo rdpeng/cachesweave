@@ -1,7 +1,9 @@
 export(
        "setCacheDir",
        "getCacheDir",
-       "cacheSweaveDriver"
+       "cacheSweaveDriver",
+       "Stangle",
+       "cacheTangleDriver"
        )
 
 import(utils)

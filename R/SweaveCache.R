@@ -39,6 +39,65 @@ cacheRweaveLatexOptions <- function(options) {
 	Rweaveoptions <- utils::RweaveLatexOptions(oldoptions)
 	options <- unlist(list(Rweaveoptions,newoptions),recursive=F)
 }
+# The tangle code has been copied from R 2.13.0 and modified to use the new options
+Stangle <- function(file, driver=cacheTangleDriver(), syntax=getOption("SweaveSyntax"), ...)
+	Sweave(file = file, driver = driver, ...)
+
+cacheTangleDriver <- function() {
+	list(setup = utils::RtangleSetup,
+	     runcode = RtangleRuncode,
+	     writedoc = utils::RtangleWritedoc,
+	     finish = RtangleFinish,
+	     checkopts = cacheRweaveLatexOptions)
+}
+
+RtangleRuncode <-  function(object, chunk, options)
+{
+    if (!(options$engine %in% c("R", "S"))) return(object)
+
+    chunkprefix <- RweaveChunkPrefix(options)
+
+    if (options$split) {
+        outfile <- paste(chunkprefix, options$engine, sep = ".")
+        if (!object$quiet) cat(options$chunknr, ":", outfile,"\n")
+        ## [x][[1L]] avoids partial matching of x
+        chunkout <- object$chunkout[chunkprefix][[1L]]
+        if (is.null(chunkout)) {
+            chunkout <- file(outfile, "w")
+            if (!is.null(options$label))
+                object$chunkout[[chunkprefix]] <- chunkout
+        }
+    } else
+        chunkout <- object$output
+
+    if (object$annotate) {
+        cat("###################################################\n",
+            "### chunk number ", options$chunknr,
+            ": ", options$label,
+            ifelse(options$eval, "", " eval=FALSE"), "\n",
+            "###################################################\n",
+            file = chunkout, sep = "")
+    }
+
+    hooks <- SweaveHooks(options, run = FALSE)
+    for (k in hooks)
+        cat("getOption(\"SweaveHooks\")[[\"", k, "\"]]()\n",
+            file = chunkout, sep = "")
+
+    if (!options$eval) chunk <- paste("##", chunk)
+    cat(chunk,"\n", file = chunkout, sep = "\n")
+    if (is.null(options$label) && options$split) close(chunkout)
+    object
+}
+
+RtangleFinish <- function(object, error = FALSE)
+{
+    if (!is.null(object$output)) close(object$output)
+
+    if (length(object$chunkout))
+        for (con in object$chunkout) close(con)
+}
+
 
 
 
