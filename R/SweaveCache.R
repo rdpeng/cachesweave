@@ -25,15 +25,15 @@
 cacheSweaveDriver <- function() {
         list(
              setup = cacheSweaveSetup,
-             runcode = makeRweaveLatexCodeRunner(cacheSweaveEvalWithOpt),
+	     runcode = makeCacheSweaveCodeRunner(cacheSweaveEvalWithOpt),
              writedoc = utils::RweaveLatexWritedoc,
              finish = utils::RweaveLatexFinish,
-             checkopts = cacheRweaveLatexOptions
+             checkopts = cacheSweaveLatexOptions
              )
 }
 
-cacheRweaveLatexOptions <- function(options) {
-	moreoptions <- c('dependson')
+cacheSweaveLatexOptions <- function(options) {
+	moreoptions <- c('dependson','cache')
 	oldoptions <- options[setdiff(names(options),moreoptions)]
 	newoptions <- options[intersect(names(options),moreoptions)]
 	Rweaveoptions <- utils::RweaveLatexOptions(oldoptions)
@@ -48,7 +48,7 @@ cacheTangleDriver <- function() {
 	     runcode = RtangleRuncode,
 	     writedoc = utils::RtangleWritedoc,
 	     finish = RtangleFinish,
-	     checkopts = cacheRweaveLatexOptions)
+	     checkopts = cacheSweaveLatexOptions)
 }
 
 RtangleRuncode <-  function(object, chunk, options)
@@ -244,7 +244,7 @@ cacheSweaveEvalWithOpt <- function (expr, options) {
         res <- NULL
 
         if(!options$eval)
-                return(list(res = res, updated = FALSE))
+		return(res)
 
 	cachedir <- getCacheDir()
 	## Create database name from chunk label and MD5
@@ -263,14 +263,11 @@ cacheSweaveEvalWithOpt <- function (expr, options) {
 	creationTimes <- metaGetCreationTime(dbMeta)
 	fresh = dbExists(db, exprDigest)
 
-	# NOTE: Currently doesn't cache un-labeled chunks
 	if (!is.null(creationTimes[[chunkName]])) {
 		chunkCreationTime <- creationTimes[[chunkName]]
 		if(trace) cat("%",chunkName,"has creationTime:",format.Date(chunkCreationTime),"\n")
 	} else
 		chunkCreationTime <- NULL
-
-	flush(tmpcon)
 
 	fresh = fresh & !is.null(chunkCreationTime)
 	if (!is.null(options$dependson)){
@@ -282,9 +279,9 @@ cacheSweaveEvalWithOpt <- function (expr, options) {
 					dirty1 = creationTimes[[dep]] > chunkCreationTime
 				if (trace)
 					if (dirty1)
-						cat("% in",chunkName,"dependency",dep,"is newer\n")
+						cat("% in",chunkName,format.Date(chunkCreationTime),"dependency",dep,"is newer",format.Date(creationTimes[[dep]]),"\n")
 					else
-						cat("% in",chunkName,"dependency",dep,"is older\n")
+						cat("% in",chunkName,format.Date(chunkCreationTime),"dependency",dep,"is older",format.Date(creationTimes[[dep]]),"\n")
 				fresh = fresh & !dirty1
 			}
 	} else {
@@ -324,7 +321,7 @@ cacheSweaveEvalWithOpt <- function (expr, options) {
 			## If there was an error then just return the
 			## condition object and let Sweave deal with it.
 			if(inherits(keys, "try-error"))
-				return(list(res = keys, updated = FALSE))
+				return(keys)
 			updated <- TRUE
 		}
 		else {
@@ -347,7 +344,9 @@ cacheSweaveEvalWithOpt <- function (expr, options) {
                 ## in the global environment
                 res <- utils::RweaveEvalWithOpt(expr, options)
         }
-        list(res=res,updated=updated)
+	if (updated)
+		assign("updatedChunk", TRUE, parent.frame(n=2))
+	res
 }
 
 makeMetaDatabaseName <- function(cachedir) {
@@ -377,11 +376,10 @@ metaChunkName <- function(options) {
 		chunkName <- options$label
 	else
 		chunkName <- paste("c",options$chunkDigest,sep='')
-	#cat("(chunkname=",chunkName))
 	chunkName
 }
 
-## Need to add the 'cache', 'filename' option to the list
+## Need to add the 'cache', 'filename', 'trace' and 'dependson' options to the list
 cacheSweaveSetup <- function(..., cache = FALSE, trace=F, dependson=NULL) {
         out <- utils::RweaveLatexSetup(...)
 
@@ -392,6 +390,24 @@ cacheSweaveSetup <- function(..., cache = FALSE, trace=F, dependson=NULL) {
         out
 }
 
+makeCacheSweaveCodeRunner <- function(evalFunc = cacheSweaveEvalWithOpt) {
+	runner <- makeRweaveLatexCodeRunner(evalFunc)
+	function(object, chunk, options) {
+		updatedChunk <- F
+		e <- runner(object, chunk, options)
+		flag <- 'L'
+		if(updatedChunk) {
+			chunkName <- metaChunkName(options)
+			metaSetCreationTime(chunkName)
+			flag <- 'S'
+		}
+		n <- nchar(as.character(options$chunknr))
+		# overwrites the : on preceding row with flag using ANSI
+		cat("[F[",n+2,"C",flag,"\n",sep='')
+		e
+	}
+
+}
 
 
 
