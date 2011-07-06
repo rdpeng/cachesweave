@@ -39,9 +39,6 @@ cacheSweaveLatexOptions <- function(options) {
 	Rweaveoptions <- utils::RweaveLatexOptions(oldoptions)
 	options <- unlist(list(Rweaveoptions,newoptions),recursive=F)
 }
-# The tangle code has been copied from R 2.13.0 and modified to use the new options
-Stangle <- function(file, driver=cacheTangleDriver(), syntax=getOption("SweaveSyntax"), ...)
-	Sweave(file = file, driver = driver, ...)
 
 cacheTangleDriver <- function() {
 	list(setup = utils::RtangleSetup,

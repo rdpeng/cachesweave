@@ -1,5 +1,6 @@
 \name{cacheSweave}
 \alias{cacheSweaveDriver}
+\alias{cacheTangleDriver}
 \alias{cacheSweave}
 \alias{cacheSweave-package}
 
@@ -9,6 +10,7 @@
 }
 \usage{
 cacheSweaveDriver()
+cacheTangleDriver()
 }
 
 \details{
@@ -27,6 +29,9 @@ cacheSweaveDriver()
   
   The \code{cacheSweaveDriver} function is used directly with
   \code{Sweave} and is passed as the \code{driver} argument.
+  For tangling the \code{cacheTangleDriver} needs to be used if you
+  have dependencies in your source file.
+
   \code{cacheSweaveDriver} also creates a "map file" which has the
   extention ".map" which contains metadata for each of the code chunks
   in a document.  This map file can be used in conjunction with the
