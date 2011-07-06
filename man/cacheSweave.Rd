@@ -61,7 +61,7 @@ x <- rnorm(100)
 <<B,cache=true>>=
 y <- rnorm(100)
 @
-<<B,cache=true,dependson=A;B>>=
+<<C,cache=true,dependson=A;B>>=
 print(sum(x,y))
 @
 }
