@@ -390,7 +390,7 @@ cacheSweaveSetup <- function(..., cache = FALSE, trace=F, dependson=NULL) {
 makeCacheSweaveCodeRunner <- function(evalFunc = cacheSweaveEvalWithOpt) {
 	runner <- makeRweaveLatexCodeRunner(evalFunc)
 	function(object, chunk, options) {
-		updatedChunk <- F
+		updatedChunk <- FALSE
 		e <- runner(object, chunk, options)
 		flag <- 'L'
 		if(updatedChunk) {
