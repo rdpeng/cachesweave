@@ -20,18 +20,82 @@
 ######################################################################
 ## Taken/adapted from Sweave code by Friedrich Leisch, along the lines
 ## of 'weaver' from Bioconductor, but more naive and we use 'stashR'
-## databases for the backend.  We also don't check dependencies on
-## previous chunks.
+## databases for the backend.  
 
 cacheSweaveDriver <- function() {
         list(
              setup = cacheSweaveSetup,
-             runcode = makeRweaveLatexCodeRunner(cacheSweaveEvalWithOpt),
+	     runcode = makeCacheSweaveCodeRunner(cacheSweaveEvalWithOpt),
              writedoc = utils::RweaveLatexWritedoc,
              finish = utils::RweaveLatexFinish,
-             checkopts = utils::RweaveLatexOptions
+             checkopts = cacheSweaveLatexOptions
              )
 }
+
+cacheSweaveLatexOptions <- function(options) {
+	moreoptions <- c('dependson','cache')
+	oldoptions <- options[setdiff(names(options),moreoptions)]
+	newoptions <- options[intersect(names(options),moreoptions)]
+	Rweaveoptions <- utils::RweaveLatexOptions(oldoptions)
+	options <- unlist(list(Rweaveoptions,newoptions),recursive=F)
+}
+
+cacheTangleDriver <- function() {
+	list(setup = utils::RtangleSetup,
+	     runcode = RtangleRuncode,
+	     writedoc = utils::RtangleWritedoc,
+	     finish = RtangleFinish,
+	     checkopts = cacheSweaveLatexOptions)
+}
+
+RtangleRuncode <-  function(object, chunk, options)
+{
+    if (!(options$engine %in% c("R", "S"))) return(object)
+
+    chunkprefix <- RweaveChunkPrefix(options)
+
+    if (options$split) {
+        outfile <- paste(chunkprefix, options$engine, sep = ".")
+        if (!object$quiet) cat(options$chunknr, ":", outfile,"\n")
+        ## [x][[1L]] avoids partial matching of x
+        chunkout <- object$chunkout[chunkprefix][[1L]]
+        if (is.null(chunkout)) {
+            chunkout <- file(outfile, "w")
+            if (!is.null(options$label))
+                object$chunkout[[chunkprefix]] <- chunkout
+        }
+    } else
+        chunkout <- object$output
+
+    if (object$annotate) {
+        cat("###################################################\n",
+            "### chunk number ", options$chunknr,
+            ": ", options$label,
+            ifelse(options$eval, "", " eval=FALSE"), "\n",
+            "###################################################\n",
+            file = chunkout, sep = "")
+    }
+
+    hooks <- SweaveHooks(options, run = FALSE)
+    for (k in hooks)
+        cat("getOption(\"SweaveHooks\")[[\"", k, "\"]]()\n",
+            file = chunkout, sep = "")
+
+    if (!options$eval) chunk <- paste("##", chunk)
+    cat(chunk,"\n", file = chunkout, sep = "\n")
+    if (is.null(options$label) && options$split) close(chunkout)
+    object
+}
+
+RtangleFinish <- function(object, error = FALSE)
+{
+    if (!is.null(object$output)) close(object$output)
+
+    if (length(object$chunkout))
+        for (con in object$chunkout) close(con)
+}
+
+
 
 
 ######################################################################
@@ -107,7 +171,7 @@ checkNewSymbols <- function(e1, e2) {
 ## with a digest of the expression.  Return a character vector of keys
 ## that were dumped
 
-evalAndDumpToDB <- function(db, expr, exprDigest) {
+evalAndDumpToDB <- function(db, expr, exprDigest, chunkDigest) {
         env <- new.env(parent = globalenv())
         global1 <- copyEnv(globalenv())
         
@@ -122,6 +186,9 @@ evalAndDumpToDB <- function(db, expr, exprDigest) {
 
         ## Get newly assigned object names
         keys <- ls(env, all.names = TRUE)
+	newkey <- paste('.cacheSweave.creation.time.',chunkDigest,sep='')
+	keys <- c(keys, newkey)
+	assign(newkey, Sys.time(), envir=env)
 
         ## Associate the newly created keys with the digest of
         ## the expression
@@ -136,7 +203,7 @@ evalAndDumpToDB <- function(db, expr, exprDigest) {
 }
 
 makeChunkDatabaseName <- function(cachedir, options, chunkDigest) {
-        file.path(cachedir, paste(options$label, chunkDigest, sep = "_"))
+        file.path(cachedir, paste('cacheSweaveStorage',options$label, chunkDigest, sep = "_"))
 }
 
 mangleDigest <- function(x) {
@@ -174,62 +241,170 @@ cacheSweaveEvalWithOpt <- function (expr, options) {
         res <- NULL
 
         if(!options$eval)
-                return(res)
+		return(res)
+
+	cachedir <- getCacheDir()
+	## Create database name from chunk label and MD5
+	## digest
+	dbName <- makeChunkDatabaseName(cachedir, options, chunkDigest)
+	exprDigest <- mangleDigest(hashExpr(expr))
+
+	## Create 'stashR' database
+	db <- new("localDB", dir = dbName, name = basename(dbName))
+
+	trace <- options$trace & as.logical(options$trace)
+
+	chunkName <- metaChunkName(options)
+	dbMetaName <- makeMetaDatabaseName(cachedir)
+	dbMeta <- new("localDB", dir = dbMetaName, name = basename(dbMetaName))
+	creationTimes <- metaGetCreationTime(dbMeta)
+	fresh = dbExists(db, exprDigest)
+
+	if (!is.null(creationTimes[[chunkName]])) {
+		chunkCreationTime <- creationTimes[[chunkName]]
+		if(trace) cat("%",chunkName,"has creationTime:",format.Date(chunkCreationTime),"\n")
+	} else
+		chunkCreationTime <- NULL
+
+	fresh = fresh & !is.null(chunkCreationTime)
+	if (!is.null(options$dependson)){
+		depends <- unlist(strsplit(options$dependson,';'))
+		if (fresh)
+			for (dep in depends) {
+				dirty1 = is.null(creationTimes[[dep]])
+			        if(!dirty1)
+					dirty1 = creationTimes[[dep]] > chunkCreationTime
+				if (trace)
+					if (dirty1)
+						cat("% in",chunkName,format.Date(chunkCreationTime),"dependency",dep,"is newer",format.Date(creationTimes[[dep]]),"\n")
+					else
+						cat("% in",chunkName,format.Date(chunkCreationTime),"dependency",dep,"is older",format.Date(creationTimes[[dep]]),"\n")
+				fresh = fresh & !dirty1
+			}
+	} else {
+		depends = NULL
+	}
+	if (trace) {
+		if (fresh) {
+			cat("%",chunkName,"is fresh\n")
+		} else {
+			cat("%",chunkName,"is dirty\n")
+		}
+        }
+	updated <- FALSE
+
         if(options$cache) {
-                cachedir <- getCacheDir()
-
-                ## Create database name from chunk label and MD5
-                ## digest
-                dbName <- makeChunkDatabaseName(cachedir, options, chunkDigest)
-                exprDigest <- mangleDigest(hashExpr(expr))
-
-                ## Create 'stashR' database
-                db <- new("localDB", dir = dbName, name = basename(dbName))
-
                 ## If the current expression is not cached, then
                 ## evaluate the expression and dump the resulting
                 ## objects to the database.  Otherwise, just read the
                 ## vector of keys from the database
 
-                if(!dbExists(db, exprDigest)) {
+                if(!fresh) {
                         keys <- try({
-                                evalAndDumpToDB(db, expr, exprDigest)
+                                evalAndDumpToDB(db, expr, exprDigest, chunkDigest)
                         }, silent = TRUE)
+			if(trace) {
+				out <- "% evaluating and storing"
+				out <- paste(out,chunkName)
+				if (!is.null(depends)) {
+					out <- paste(out," depends (",sep='')
+					out <- paste(out, paste(depends,collapse=', '),sep='')
+					out <- paste(out,")",sep='')
+				}
+				out <- paste(out,Sys.time())
+				cat(out,"\n")
+			}
 
 			## If there was an error then just return the
 			## condition object and let Sweave deal with it.
 			if(inherits(keys, "try-error"))
 				return(keys)
+			updated <- TRUE
 		}
 		else {
-                        keys <- dbFetch(db, exprDigest)
+       			if(trace) {
+				cat("% fetching object",chunkName)
+			}
+			keys <- dbFetch(db, exprDigest)
 			dbLazyLoad(db, globalenv(), keys)
+       			if(trace) {
+                                if (!is.null(depends)) {
+                                        cat(" depending on",paste(depends,collapse=', '))
+                                }
+                                cat("\n")
+			}
 		}
-		keys
+		res <- keys
         }
         else {
                 ## If caching is turned off, just evaluate the expression
                 ## in the global environment
                 res <- utils::RweaveEvalWithOpt(expr, options)
         }
-        res
+	if (updated)
+		assign("updatedChunk", TRUE, parent.frame(n=2))
+	res
 }
 
-## Need to add the 'cache', 'filename' option to the list
-cacheSweaveSetup <- function(..., cache = FALSE) {
+makeMetaDatabaseName <- function(cachedir) {
+	file.path(cachedir, "cacheSweaveStorage_metadata")
+}
 
+metaGetCreationTime <- function(dbMeta) {
+	if(dbExists(dbMeta,"creationTimes")) {
+		creationTimes <- dbFetch(dbMeta, "creationTimes")
+	} else {
+		creationTimes <- list()
+	}
+	creationTimes
+}
+
+metaSetCreationTime <- function(label) {
+	cachedir <- getCacheDir()
+	dbMetaName <- makeMetaDatabaseName(cachedir)
+	dbMeta <- new("localDB", dir = dbMetaName, name = basename(dbMetaName))
+	creationTimes <- metaGetCreationTime(dbMeta)
+	creationTimes[[label]] =Sys.time()
+	dbInsert(dbMeta, "creationTimes", creationTimes)
+	creationTimes
+}
+metaChunkName <- function(options) {
+	if(!is.null(options$label))
+		chunkName <- options$label
+	else
+		chunkName <- paste("c",options$chunkDigest,sep='')
+	chunkName
+}
+
+## Need to add the 'cache', 'filename', 'trace' and 'dependson' options to the list
+cacheSweaveSetup <- function(..., cache = FALSE, trace=F, dependson=NULL) {
         out <- utils::RweaveLatexSetup(...)
 
-######################################################################
-        ## Additions here [RDP]
         ## Add the (non-standard) options for code chunks with caching
         out$options[["cache"]] <- cache
-
-        ## End additions [RDP]
-######################################################################
+	out$options[["dependson"]] <- dependson
+	out$options[["trace"]] <- trace
         out
 }
 
+makeCacheSweaveCodeRunner <- function(evalFunc = cacheSweaveEvalWithOpt) {
+	runner <- makeRweaveLatexCodeRunner(evalFunc)
+	function(object, chunk, options) {
+		updatedChunk <- F
+		e <- runner(object, chunk, options)
+		flag <- 'L'
+		if(updatedChunk) {
+			chunkName <- metaChunkName(options)
+			metaSetCreationTime(chunkName)
+			flag <- 'S'
+		}
+		n <- nchar(as.character(options$chunknr))
+		# overwrites the : on preceding row with flag using ANSI
+		cat("[F[",n+2,"C",flag,"\n",sep='')
+		e
+	}
+
+}
 
 
 

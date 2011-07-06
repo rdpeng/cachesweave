@@ -7,6 +7,9 @@ Imports: utils, digest
 LazyLoad: yes
 Author: Roger D. Peng <rpeng@jhsph.edu>
 Maintainer: Roger D. Peng <rpeng@jhsph.edu>
-Description: Tools for caching Sweave computations and storing them in key-value databases
+Description: Tools for caching Sweave computations and storing them in
+        key-value databases
 License: GPL (>= 2)
 URL: https://github.com/rdpeng/cachesweave
+Repository: CRAN
+Packaged: 2011-04-26 10:29:12 UTC; btobias
