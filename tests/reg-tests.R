@@ -14,5 +14,5 @@ ls()
 
 dname <- dir("cache", full.names = TRUE)
 suppressMessages(library(stashR))
-db <- new("localDB", dir = dname, name = "cacheDB")
+db <- new("localDB", dir = dname[2], name = "cacheDB")
 dbList(db)
