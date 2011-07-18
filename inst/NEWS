@@ -1,0 +1,15 @@
+Changes since v0.5
+------------------
+
+Added dependency tracking code from Tobias Abenius. This feature adds a 
+'dependson' option to Sweave and allows a code chunk to depend on another
+named chunk. If a code chunk is modified, then its subsequent dependencies
+are re-run (rather than loaded from cache).
+
+
+Changes since v0.4-4
+--------------------
+
+We now call the makeRweaveLatexCodeRunner directly rather than copying over
+code from the Sweave function by hand. This hopefully will allow for
+easier maintenance and fewer breakages. 
