@@ -1,8 +1,8 @@
 
-R version 2.13.1 Patched (2011-07-13 r56380)
-Copyright (C) 2011 The R Foundation for Statistical Computing
+R version 2.16.0 Under development (unstable) (--)
+Copyright (C)  The R Foundation for Statistical Computing
 ISBN 3-900051-07-0
-Platform: x86_64-apple-darwin10.7.0 (64-bit)
+Platform: x86_64-apple-darwin10.8.0 (64-bit)
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
 You are welcome to redistribute it under certain conditions.
@@ -25,13 +25,13 @@ Type 'q()' to quit R.
 > Sweave(infile, driver = cacheSweaveDriver)
 Writing to file simpleRR.tex
 Processing code chunks with options ...
- 1 : echo term verbatim (label = LoadPackages)
+ 1 : echo keep.source term verbatim (label = LoadPackages)
 [F[3CL
- 2 : echo term verbatim (label = FitLinearModel)
+ 2 : echo keep.source term verbatim (label = FitLinearModel)
 [F[3CS
- 3 : echo term tex (label = CoefficientTable)
+ 3 : echo keep.source term tex (label = CoefficientTable)
 [F[3CL
- 4 : echo term verbatim pdf (label = LinearModelDiagnosticPlots)
+ 4 : echo keep.source term verbatim pdf  (label = LinearModelDiagnosticPlots)
 [F[3CL
 
 You can now run (pdf)latex on 'simpleRR.tex'
@@ -47,9 +47,12 @@ You can now run (pdf)latex on 'simpleRR.tex'
 > suppressMessages(library(stashR))
 > db <- new("localDB", dir = dname[2], name = "cacheDB")
 > dbList(db)
-[1] ".__9be9118a4c6569bc6634e5704285e3e1e3b4df98__"                      
+[1] ".__b25a80f33840fd47449eec6813f6521a3e06f10b__"                      
 [2] "airquality"                                                         
-[3] ".__6f3a93e70009c1b4dd580be9c30cac4adf828151__"                      
+[3] ".__d1bd12f0b4d682e4adc1912896e5f2e55bccc4d8__"                      
 [4] "fit"                                                                
-[5] ".cacheSweave.creation.time.de1e2e93d3fdb78816f20550d50db7cabeb63688"
+[5] ".cacheSweave.creation.time.93fb220f3ff7de46723ba8b50da28a5ddbb353de"
 > 
+> proc.time()
+   user  system elapsed 
+  0.907   0.081   1.002 
