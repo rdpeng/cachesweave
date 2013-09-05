@@ -7,3 +7,5 @@ export(
 
 import(utils)
 importFrom(digest, "digest")
+import(filehash)
+import(stashR)
