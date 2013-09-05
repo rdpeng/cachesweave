@@ -31,11 +31,11 @@ cacheTangleDriver()
   \code{Sweave} and is passed as the \code{driver} argument.
   For tangling the \code{cacheTangleDriver} needs to be used if you
   have dependencies in your source file.
-
-  \code{cacheSweaveDriver} also creates a "map file" which has the
-  extention ".map" which contains metadata for each of the code chunks
-  in a document.  This map file can be used in conjunction with the
-  \code{RRPM} package for creating reproducible research packages.
+%
+%  \code{cacheSweaveDriver} also creates a "map file" which has the
+%  extention ".map" which contains metadata for each of the code chunks
+%  in a document.  This map file can be used in conjunction with the
+%  \code{RRPM} package for creating reproducible research packages.
 }
 
 \note{

@@ -19,7 +19,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% almost as usual
-\author{Roger D. Peng\\Department of Biostatistics\\Johns Hopkins Bloomberg School of Public Health}
+\author{Roger D. Peng\\Department of Biostatistics\\Johns Hopkins Bloomberg School of Public Health\\and\\Tobias Abenius\\Department of Mathematical Statistics\\University of Gothenburg}
 
 \title{The \pkg{cacheSweave} Package}
 
@@ -224,15 +224,15 @@ The objects are then lazy-loaded~\citep[see e.g.][]{rnews:ripley:2004}
 into the global environment via the \code{dbLazyLoad} function from
 the \pkg{filehash} package~\citep{peng:2006}.
 \end{enumerate}
-\item
-A ``map file'' is created which is a text file that contains metadata
-about the code chunks and any resulting databases or figures produced.
+%\item
+%A ``map file'' is created which is a text file that contains metadata
+%about the code chunks and any resulting databases or figures produced.
 \end{enumerate}
 The result of running \code{Sweave} with the \code{cacheSweaveDriver}
-function is a \LaTeX\ file, a collection of \pkg{stashR} databases
+function is a \LaTeX\ file and a collection of \pkg{stashR} databases
 either in the current directory or in a directory specified by
-\code{setCacheDir}, and a map file which contains information about
-each of the code chunks.
+\code{setCacheDir}.%, and a map file which contains information about
+%each of the code chunks.
 
 On a subsequent evaluation, the processing is slightly different.
 Namely, for each expression in a code chunk:
@@ -288,6 +288,43 @@ the database.  Therefore, code can be written in the manner shown
 above and there is no need to worry about the \code{data} object being
 loaded repeatedly into \proglang{R} when it is not actually needed.
 
+\section{Dependencies between code chunks}
+Let say there are chunks \code{A} and \code{B} specifying some parameters that affect chunks below. 
+Some chunks \code{C} are affected by the change, but there are chunks \code{D} that are not affected.
+Chunks that are affected {\em depend} on the values from changed chunks \code{A} and \code{B}.
+This is expressed as following:
+\begin{verbatim}
+%<<A,cache=true>>
+lambda1 = 0.1
+%@
+%<<B,cache=true>>
+B = 1000
+%@
+%<<C,cache=true,dependson=A;B>>
+fit <- fitmodel(X,y,lambda,B)
+%@
+%<<D,cache=true>>
+norm(crossprod(X,y),'i')
+%@
+\end{verbatim}
+
+Each time a chunk is evaluated they are given a timestamp. 
+The chunk at hand check if it depends on another set of chunks. 
+If it does it check to see if the chunk at hand was stored before the chunks in the list of chunks it depends on. 
+If so it is flagged as old and need to re-evaluate. 
+Otherwise chunks are considered fresh and loaded.
+
+Note that depending on a chunk that is not cached is considered illegal since the dependency would not have a timestamp.
+Also note that expressing that when a chunk depends on several other chunks those must be separated with semicolon as the normal colon is used to separate options in general.
+
+One can see what is going on with the chunks involved if one adds the parameter \code{trace} to options when Sweaving.
+<<useCacheSweaveDepends,eval=false>>=
+Sweave("bar.Rnw", driver = cacheSweaveDriver, trace=TRUE)
+@
+This will output statements that tell creation times of the different chunks, whether it is considered fresh or dirty in relation to their dependencies. 
+This could feel comforting when looking for bugs.
+
+Given a correct dependency structure among cached chunks one can feel safe that the data presented is up to date at all times.
 
 \section[Construction of cacheSweaveDriver]{Construction of \code{cacheSweaveDriver}}
 
@@ -298,8 +335,10 @@ on the \code{RweaveLatex} function from the \pkg{utils} package.  The
 \item
 \code{setup}, creates a list of available options.  We add an extra
 option \code{cache} for indicating whether a code chunk should be
-cached.  We also add the name of the map file so that it can be
-updated after evaluating each code chunk.
+cached. We also add an extra option \code{dependson} for indicating 
+whether the evaluation of the chunk at hand depends on previous results.
+%We also add the name of the map file so that it can be
+%updated after evaluating each code chunk.
 \item
 \code{runcode}, based on the \code{RweaveLatexRuncode} function in the
 \pkg{utils} package, this function executes code in each code chunk
@@ -308,8 +347,8 @@ original code is retained, we replace the call to
 \code{RweaveEvalWithOpt} with our own \code{cacheSweaveEvalWithOpt}
 function, which handles the evaluation of the expression, creation of
 the \pkg{stashR} database, and the saving of objects to the database.
-We also add a call to the function \code{writeChunkMetadata} which writes
-out information to the map file.
+%We also add a call to the function \code{writeChunkMetadata} which writes
+%out information to the map file.
 \item
 \code{writedoc}, handles writing of output \LaTeX\ file; we import the
 \code{RweaveLatexWritedoc} function from \pkg{utils}.
