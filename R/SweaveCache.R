@@ -221,14 +221,20 @@ cacheSweaveEvalWithOpt <- function (expr, options) {
 		depends <- unlist(strsplit(options$dependson,';'))
 		if (fresh)
 			for (dep in depends) {
-				dirty1 = is.null(creationTimes[[dep]])
-			        if(!dirty1)
-					dirty1 = creationTimes[[dep]] > chunkCreationTime
+				if (is.null(creationTimes[[dep]])) {
+					if (file.exists(dep))
+					  cmptime = file.info(dep)$mtime
+					else
+					  stop("dependency '",dep,"' is neither a cached chunk nor a file!")
+				} else {
+					cmptime = creationTimes[[dep]]
+				}
+				dirty1 = cmptime > chunkCreationTime
 				if (trace)
 					if (dirty1)
-						cat("% in",chunkName,format.Date(chunkCreationTime),"dependency",dep,"is newer",format.Date(creationTimes[[dep]]),"\n")
+						cat("% in",chunkName,format.Date(chunkCreationTime),"dependency",dep,"is newer",format.Date(cmptime),"\n")
 					else
-						cat("% in",chunkName,format.Date(chunkCreationTime),"dependency",dep,"is older",format.Date(creationTimes[[dep]]),"\n")
+						cat("% in",chunkName,format.Date(chunkCreationTime),"dependency",dep,"is older",format.Date(cmptime),"\n")
 				fresh = fresh & !dirty1
 			}
 	} else {
