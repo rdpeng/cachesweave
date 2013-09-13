@@ -309,13 +309,13 @@ norm(crossprod(X,y),'i')
 \end{verbatim}
 
 Each time a chunk is evaluated they are given a timestamp. 
-The chunk at hand check if it depends on another set of chunks. 
-If it does it check to see if the chunk at hand was stored before the chunks in the list of chunks it depends on. 
+The chunk at hand check if it depends on a set of {\em dependees}, {\em i.e.} chunks and/or files that are depended on.
+If it does it check to see if the chunk at hand was stored before the dependees.
 If so it is flagged as old and need to re-evaluate. 
 Otherwise chunks are considered fresh and loaded.
 
-Note that depending on a chunk that is not cached is considered illegal since the dependency would not have a timestamp.
-Also note that expressing that when a chunk depends on several other chunks those must be separated with semicolon as the normal colon is used to separate options in general.
+Note that depending on a chunk that is not cached or on a file which does not yet exist is considered illegal since the dependee would not have a timestamp, execution will be stopped if such a dependency is encountered.
+Also note that when expressing that a chunk depends on several other chunks those must be separated with semicolon as the normal colon is used to separate options in general.
 
 One can see what is going on with the chunks involved if one adds the parameter \code{trace} to options when Sweaving.
 <<useCacheSweaveDepends,eval=false>>=
