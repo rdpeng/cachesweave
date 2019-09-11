@@ -1,1 +1,12 @@
-inst/doc/cacheSweave.pdf
+vignettes/cacheSweave.aux
+vignettes/cacheSweave.bbl
+vignettes/cacheSweave.blg
+vignettes/cacheSweave.fdb_latexmk
+vignettes/cacheSweave.fls
+vignettes/cacheSweave.log
+vignettes/cacheSweave.out
+vignettes/cacheSweave.pdf
+vignettes/cacheSweave.tex
+vignettes/jss.bst
+*~
+.Rbuildignore
